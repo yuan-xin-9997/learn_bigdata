@@ -1,7 +1,8 @@
-package com.atguigu.hafs;
+package com.atguigu.hdfs;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -49,17 +50,29 @@ public class HDFSDemo {
 
     // 上传
     @Test
-    public void upload(){
+    public void upload() throws IOException {
          System.out.println("--------upload---------");
          /*
           * copyFromLocalFile(boolean delSrc, boolean overwrite, Path src, Path dst)
+          *    delSrc 是否删除原文件（本地的）
+          *    overwrite 是否覆盖
+          *    src 源文件路径（本地）
+          *    dst 目标文件路径
           */
-        fs.copyFromLocalFile();
+        fs.copyFromLocalFile(false, true, new Path("C:\\Windows\\regedit.exe"), new Path("/input"));
     }
 
     // 下载
     @Test
-    public void download(){
+    public void download() throws IOException {
          System.out.println("--------download---------");
+         /*
+         * public void copyToLocalFile(boolean delSrc, Path src, Path dst, boolean useRawLocalFileSystem) throws IOException
+         *      delSrc: 是否删除源文件（HDFS）
+         *      src：源文件路径（HDFS）
+         *      dst：目标文件路径（本地）
+         *      useRawLocalFileSystem：是否使用本地文件系统
+         * */
+         fs.copyToLocalFile(false, new Path("/input/xsync.sh"), new Path("D:\\dev\\"), true);
     }
 }
