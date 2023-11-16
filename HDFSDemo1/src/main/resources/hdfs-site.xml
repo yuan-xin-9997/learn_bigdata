@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+
+<configuration>
+<!--  &lt;!&ndash; nn web端访问地址&ndash;&gt;-->
+<!--  <property>-->
+<!--    <name>dfs.namenode.http-address</name>-->
+<!--    <value>hadoop102:9870</value>-->
+<!--  </property>-->
+<!--  &lt;!&ndash; 2nn web端访问地址&ndash;&gt;-->
+<!--  <property>-->
+<!--    <name>dfs.namenode.secondary.http-address</name>-->
+<!--    <value>hadoop104:9868</value>-->
+<!--  </property>-->
+  <property>
+    <name>dfs.replication</name>
+    <value>10</value>
+  </property>
+
+
+</configuration>
