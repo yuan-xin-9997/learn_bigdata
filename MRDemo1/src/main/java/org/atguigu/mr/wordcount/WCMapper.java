@@ -19,6 +19,10 @@ import java.io.IOException;
 *           VALUEOUT：写出的value的类型（在这里是单词的数量的类型）
 * */
 public class WCMapper extends Mapper<LongWritable, Text, Text, LongWritable> {
+
+    private Text outKey = new Text(); // 3.1 创建Key对象
+    private LongWritable outValue = new LongWritable(); // 3.2创建Value对象
+
     /**
      * 1. 在map方法中实现需要在MapTask中实现的业务逻辑代码
      * 2. 该方法在被循环调用，每调用一次传入一行数据
@@ -28,9 +32,6 @@ public class WCMapper extends Mapper<LongWritable, Text, Text, LongWritable> {
      * @throws IOException
      * @throws InterruptedException
      */
-    private Text outKey = new Text(); // 3.1 创建Key对象
-    private LongWritable outValue = new LongWritable(); // 3.2创建Value对象
-
     @Override
     protected void map(LongWritable key, Text value, Mapper<LongWritable, Text, Text, LongWritable>.Context context) throws IOException, InterruptedException {
         // super.map(key, value, context);
