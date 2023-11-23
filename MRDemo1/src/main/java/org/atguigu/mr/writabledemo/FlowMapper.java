@@ -38,7 +38,13 @@ public class FlowMapper extends Mapper<LongWritable, Text, Text, FlowBean> {
         // 1. 将数据切割
         String[] phoneInfo = value.toString().split("\t");
         // 2. 封装key, value
-        outKey.set(phoneInfo[1]);
-        
+        outKey.set(phoneInfo[1]);//给key赋值
+        // 给value赋值
+        outValue.setUpFlow(Long.parseLong(phoneInfo[phoneInfo.length - 3]));
+        outValue.setDownFlow(Long.parseLong(phoneInfo[phoneInfo.length - 2]));
+        //outValue.setSumFlow(Long.parseLong(phoneInfo[phoneInfo.length - 1]));
+        outValue.setSumFlow(outValue.getUpFlow() + outValue.getDownFlow());
+        // 3. 将key，value写出去
+        context.write(outKey, outValue);
     }
 }

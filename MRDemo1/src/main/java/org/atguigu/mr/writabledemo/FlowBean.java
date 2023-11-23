@@ -42,6 +42,12 @@ public class FlowBean implements Writable {
         sumFlow = dataInput.readLong();
     }
 
+    @Override
+    public String toString() {
+        //return super.toString();
+        return upFlow + ", " + downFlow + ", " + sumFlow;
+    }
+
     public long getUpFlow() {
         return upFlow;
     }
