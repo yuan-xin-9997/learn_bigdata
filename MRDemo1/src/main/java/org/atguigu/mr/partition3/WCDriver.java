@@ -1,4 +1,4 @@
-package org.atguigu.mr.combine;
+package org.atguigu.mr.partition3;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -15,7 +15,8 @@ import java.io.IOException;
 * 程序入口，
 * 1.创建Job实例并运行（在本地运行）
 *
-* CombineTextInputFormat: 可以将多个小文件变成指定的片数（计算的角度）
+** 自定义分区
+*  实现WordCount按照a-p，q-z分区
 * */
 public class WCDriver {
     public static void main(String[] args) throws IOException, InterruptedException, ClassNotFoundException {
@@ -23,12 +24,10 @@ public class WCDriver {
         Configuration conf = new Configuration();
         Job job = Job.getInstance(conf);
 
-
-        // =============设置使用CombineTextInputFormat，如果不设置默认使用的是TextInputFormat===================
-        job.setInputFormatClass(CombineTextInputFormat.class);
-        // 设置虚拟存储切片最大值，4M
-        CombineTextInputFormat.setMaxInputSplitSize(job, 4194304);
-
+        // 设置ReduceTask的数量
+        job.setNumReduceTasks(2);
+        // 设置自定义分区类
+        job.setPartitionerClass(MyPartitioner.class);
 
         // 2. 给Job赋值
         // 2.1 关联本程序的Jar--如果是本地可以不写，在集群上运行必须写

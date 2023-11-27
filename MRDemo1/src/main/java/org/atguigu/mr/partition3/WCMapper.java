@@ -1,4 +1,4 @@
-package org.atguigu.mr.combine;
+package org.atguigu.mr.partition3;
 
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;

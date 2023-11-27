@@ -1,10 +1,11 @@
-package org.atguigu.mr.partition;
+package org.atguigu.mr.combinetextinputformat;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.CombineTextInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
@@ -13,6 +14,8 @@ import java.io.IOException;
 /*
 * 程序入口，
 * 1.创建Job实例并运行（在本地运行）
+*
+* CombineTextInputFormat: 可以将多个小文件变成指定的片数（计算的角度）
 * */
 public class WCDriver {
     public static void main(String[] args) throws IOException, InterruptedException, ClassNotFoundException {
@@ -20,9 +23,12 @@ public class WCDriver {
         Configuration conf = new Configuration();
         Job job = Job.getInstance(conf);
 
-        // 设置ReduceTask的数量，如果不设置默认为1个
-        // =====================设置多少数量，output文件夹就会输出多少个分区的信息==============================
-        job.setNumReduceTasks(2);
+
+        // =============设置使用CombineTextInputFormat，如果不设置默认使用的是TextInputFormat===================
+        job.setInputFormatClass(CombineTextInputFormat.class);
+        // 设置虚拟存储切片最大值，4M
+        CombineTextInputFormat.setMaxInputSplitSize(job, 4194304);
+
 
         // 2. 给Job赋值
         // 2.1 关联本程序的Jar--如果是本地可以不写，在集群上运行必须写

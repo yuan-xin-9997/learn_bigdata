@@ -1,4 +1,4 @@
-package org.atguigu.mr.partition;
+package org.atguigu.mr.combiner;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -13,6 +13,10 @@ import java.io.IOException;
 /*
 * 程序入口，
 * 1.创建Job实例并运行（在本地运行）
+*
+*
+* Combiner 合并案例
+*   注意：使用Combiner和不使用，如果结果一样，则可以使用
 * */
 public class WCDriver {
     public static void main(String[] args) throws IOException, InterruptedException, ClassNotFoundException {
@@ -20,9 +24,8 @@ public class WCDriver {
         Configuration conf = new Configuration();
         Job job = Job.getInstance(conf);
 
-        // 设置ReduceTask的数量，如果不设置默认为1个
-        // =====================设置多少数量，output文件夹就会输出多少个分区的信息==============================
-        job.setNumReduceTasks(2);
+        // =======================设置使用Combiner类===========================
+        job.setCombinerClass(WCCombiner.class);
 
         // 2. 给Job赋值
         // 2.1 关联本程序的Jar--如果是本地可以不写，在集群上运行必须写
@@ -37,8 +40,8 @@ public class WCDriver {
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(LongWritable.class);
         // 2.5 设置输入和输出的路径
-        FileInputFormat.setInputPaths(job, new Path("D:\\dev\\learn_bigdata\\MRDemo1\\input\\"));
-        FileOutputFormat.setOutputPath(job, new Path("D:\\dev\\learn_bigdata\\MRDemo1\\output"));
+        FileInputFormat.setInputPaths(job, new Path("D:\\dev\\learn_bigdata\\MRDemo1\\input3\\"));
+        FileOutputFormat.setOutputPath(job, new Path("D:\\dev\\learn_bigdata\\MRDemo1\\output4"));
 
         // 3. 运行Job
         boolean flag = job.waitForCompletion(true);

@@ -1,4 +1,4 @@
-package org.atguigu.mr.wordcount;
+package org.atguigu.mr.combinetextinputformat;
 
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -39,7 +39,7 @@ public class WCMapper extends Mapper<LongWritable, Text, Text, LongWritable> {
         // 1.1. 将Text转成String--为了使用String API进行处理
         String line = value.toString();
 //        String[] words = line.split(" ");
-        String[] words = line.split(" ");
+        String[] words = line.split(";");
         // 2. 遍历数据
         for (String word : words) {
             // 3. 封装key,value

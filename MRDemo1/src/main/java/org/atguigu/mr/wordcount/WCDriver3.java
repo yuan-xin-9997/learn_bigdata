@@ -32,6 +32,7 @@ public class WCDriver3 {
         //指定yarn resourcemanager的位置
         conf.set("yarn.resourcemanager.hostname", "hadoop103");
 
+        // 注意：创建Job对象不能和上面创建Conf对象顺序错乱，因为创建Job对象是根据Conf对象来创建的
         Job job = Job.getInstance(conf);
 
         // 2. 给Job赋值
