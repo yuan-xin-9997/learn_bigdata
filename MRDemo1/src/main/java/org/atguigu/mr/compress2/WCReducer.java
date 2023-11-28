@@ -1,4 +1,4 @@
-package org.atguigu.mr.wordcount;
+package org.atguigu.mr.compress2;
 
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;

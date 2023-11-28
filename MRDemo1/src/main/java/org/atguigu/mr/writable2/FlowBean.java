@@ -1,4 +1,4 @@
-package org.atguigu.mr.writabledemo;
+package org.atguigu.mr.writable2;
 
 import org.apache.hadoop.io.Writable;
 
@@ -45,7 +45,7 @@ public class FlowBean implements Writable {
     @Override
     public String toString() {
         //return super.toString();
-        return upFlow + ", " + downFlow + ", " + sumFlow;
+        return upFlow + "\t" + downFlow + "\t" + sumFlow;
     }
 
     public long getUpFlow() {

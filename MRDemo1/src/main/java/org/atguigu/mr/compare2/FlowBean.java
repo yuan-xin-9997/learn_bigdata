@@ -60,8 +60,8 @@ public class FlowBean implements WritableComparable<FlowBean> {
      */
     @Override
     public int compareTo(FlowBean o) {
-        // 按照总流量进行排序
-        return Long.compare(this.sumFlow, o.sumFlow);
+        // 按照总流量进行排序（倒序）
+        return -Long.compare(this.sumFlow, o.sumFlow);
         //return 0;
     }
 

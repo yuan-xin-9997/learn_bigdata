@@ -1,4 +1,4 @@
-package org.atguigu.mr.writabledemo;
+package org.atguigu.mr.writable2;
 
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;

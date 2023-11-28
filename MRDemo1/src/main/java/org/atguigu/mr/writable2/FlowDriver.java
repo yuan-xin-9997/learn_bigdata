@@ -1,4 +1,4 @@
-package org.atguigu.mr.writabledemo;
+package org.atguigu.mr.writable2;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
