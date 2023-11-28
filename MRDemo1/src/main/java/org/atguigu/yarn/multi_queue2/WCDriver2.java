@@ -1,0 +1,67 @@
+package org.atguigu.yarn.multi_queue2;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+import java.io.IOException;
+
+/*
+* 程序入口，
+* 在集群上跑Job
+*
+*       通过Main方法传参方式传入
+*       maven打包
+*       将jar包上传到集群服务器
+*       在集群服务器上执行命令 hadoop jar xxx.jar 要运行的全类名 输入路径 输出路径
+*           举例：hadoop jar MRDemo1-1.0-SNAPSHOT.jar org.atguigu.yarn.multi_queue.WCDriver2 /input /output
+* */
+public class WCDriver2 {
+    public static void main(String[] args) throws IOException, InterruptedException, ClassNotFoundException {
+        // 1. 创建Job实例
+        Configuration conf = new Configuration();
+        //设置在集群运行的相关参数-设置HDFS,NAMENODE的地址
+        conf.set("fs.defaultFS", "hdfs://hadoop102:8020");
+        //指定MR运行在Yarn上
+        conf.set("mapreduce.framework.name","yarn");
+        //指定MR可以在远程集群运行
+        conf.set("mapreduce.app-submission.cross-platform", "true");
+        //指定yarn resourcemanager的位置
+        conf.set("yarn.resourcemanager.hostname", "hadoop103");
+
+        // =====================向指定队列添加任务========================
+        conf.set("mapreduce.job.queuename","hive");
+
+        // 注意：创建Job对象不能和上面创建Conf对象顺序错乱，因为创建Job对象是根据Conf对象来创建的
+        Job job = Job.getInstance(conf);
+
+        // 2. 给Job赋值
+        // 2.1 关联本程序的Jar--如果是本地可以不写，在集群上运行必须写
+         job.setJarByClass(WCDriver2.class);
+//        job.setJar("D:\\dev\\learn_bigdata\\MRDemo1\\target\\MRDemo1-1.0-SNAPSHOT.jar");
+
+        // 2.2 设置Mapper和Reducer类
+        job.setMapperClass(WCMapper.class);
+        job.setReducerClass(WCReducer.class);
+        // 2.3 设置Mapper输出的key,value的类型
+        job.setMapOutputKeyClass(Text.class);
+        job.setMapOutputValueClass(LongWritable.class);
+        // 2.4 设置最终输出的key,value的类型（在这里是reducer输出的key,value的类型）
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(LongWritable.class);
+        // 2.5 设置输入和输出的路径（通过Main方法传参方式传入）
+        FileInputFormat.setInputPaths(job, new Path(args[0]));
+        FileOutputFormat.setOutputPath(job, new Path(args[1]));
+
+        // 3. 运行Job
+        boolean flag = job.waitForCompletion(true);
+        if (flag){
+            System.out.println("success");
+        }
+    }
+
+}
