@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="6839a411-2f02-45ad-a20b-60bd66d15b30" name="hadoop102">
+        <fileTransfer accessType="SFTP" host="hadoop102" port="22" sshConfigId="abdb22a0-eaaf-4a41-a7b5-83d344ef69d2" sshConfig="atguigu@hadoop102:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+      <webServer id="4f472419-ed41-48d1-83ec-209946e4f9c3" name="hadoop103">
+        <fileTransfer accessType="SFTP" host="hadoop103" port="22" sshConfigId="9cb5d173-817e-4aec-b0cd-821acbcd97e3" sshConfig="atguigu@hadoop103:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+      <webServer id="60989a47-5780-4562-b985-f2566ed3fb5a" name="hadoop104">
+        <fileTransfer accessType="SFTP" host="hadoop104" port="22" sshConfigId="d38e180c-fb83-41c4-b3c9-21a8d5dc4c3d" sshConfig="atguigu@hadoop104:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
