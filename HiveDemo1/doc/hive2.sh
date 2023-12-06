@@ -15,7 +15,7 @@ function check_process()
 
 function hive_start()
 {
-    metapid=$(check_process HiveMetastore 9083)
+    metapid=$(check_process HiveMetaStore 9083)
     cmd="nohup hive --service metastore >$HIVE_LOG_DIR/metastore.log 2>&1 &"
     cmd=$cmd" sleep 4; hdfs dfsadmin -safemode wait >/dev/null 2>&1"
     [ -z "$metapid" ] && eval $cmd || echo "Metastroe服务已启动"
@@ -26,8 +26,8 @@ function hive_start()
 
 function hive_stop()
 {
-    metapid=$(check_process HiveMetastore 9083)
-    [ "$metapid" ] && kill $metapid || echo "Metastore服务未启动"
+    metapid=$(check_process HiveMetaStore 9083)
+    [ "$metapid" ] && kill $metapid || echo "MetaStore服务未启动"
     server2pid=$(check_process HiveServer2 10000)
     [ "$server2pid" ] && kill $server2pid || echo "HiveServer2服务未启动"
 }
@@ -45,7 +45,7 @@ case $1 in
     hive_start
     ;;
 "status")
-    check_process HiveMetastore 9083 >/dev/null && echo "Metastore服务运行正常" || echo "Metastore服务运行异常"
+    check_process HiveMetaStore 9083 >/dev/null && echo "MetaStore服务运行正常" || echo "MetaStore服务运行异常"
     check_process HiveServer2 10000 >/dev/null && echo "HiveServer2服务运行正常" || echo "HiveServer2服务运行异常"
     ;;
 *)
