@@ -81,3 +81,179 @@ from (
 t1.uid	sum_flag
 1001	3
  */
+
+
+
+-- 第2题
+-- 1. 数据结构：某平台的用户访问数据
+-- 表名：action
+-- 字段：userId，visitDate，visitCount
+-- 2. 需求：要求使用SQL统计出每个用户的月累计访问次数及累计访问次数（注意日期数据的格式是否能解析），
+-- 3. 数据准备:
+create table action(
+    userId string,    -- 用户id
+    visitDate string, -- 访问日期
+    visitCount int     -- 访问次数
+)
+row format delimited fields terminated by "\t";
+
+load data local inpath '/opt/module/hive/datas/action.txt' into table action;
+
+-- 要求使用SQL统计出每个用户的月累计访问次数及累计访问次数（注意日期数据的格式是否能解析），
+
+-- 使用regexp_replace函数时间字符串中的/转换为-，并使用date_format函数获取年月
+select
+    userId,
+    date_format(regexp_replace(visitDate, '/', '-'), 'yyyy-MM') `date`
+from action;
+
+-- 在上述基础上，对访问次数进行开窗，累加访问次数，对用户id、年月进行分区，并按照年月进行升序
+select
+    distinct userId,
+    date_format(regexp_replace(visitDate, '/', '-'), 'yyyy-MM') `date` ,
+    sum(visitCount) over(
+        partition by userId, date_format(regexp_replace(visitDate, '/', '-'), 'yyyy-MM')
+            order by date_format(regexp_replace(visitDate, '/', '-'), 'yyyy-MM')
+    ) month_count
+from action;
+
+-- (1) 要求使用SQL统计出每个用户的月累计访问次数、及逐月累计访问次数（注意日期数据的格式是否能解析）
+with t as (
+    select
+    distinct userId,
+    date_format(regexp_replace(visitDate, '/', '-'), 'yyyy-MM') `date` ,
+    sum(visitCount) over(
+        partition by userId, date_format(regexp_replace(visitDate, '/', '-'), 'yyyy-MM')
+            order by date_format(regexp_replace(visitDate, '/', '-'), 'yyyy-MM')
+    ) month_count
+    from action
+)
+select
+    t.userId,
+    t.`date`,
+    t.month_count,
+    sum(t.month_count) over(partition by t.userId order by t.`date`) visit_sum
+from t;
+
+-- （2）要求使用SQL统计出每个用户的月累计访问次数、及总累计访问次数
+with t as (
+    select
+    distinct userId,
+    date_format(regexp_replace(visitDate, '/', '-'), 'yyyy-MM') `date` ,
+    sum(visitCount) over(
+        partition by userId, date_format(regexp_replace(visitDate, '/', '-'), 'yyyy-MM')
+            order by date_format(regexp_replace(visitDate, '/', '-'), 'yyyy-MM')
+    ) month_count
+    from action
+)
+select
+    t.userId,
+    t.`date`,
+    t.month_count,
+    sum(t.month_count) over(partition by t.userId) visit_sum
+from t;
+
+
+
+
+-- 1.3 第3题
+-- 1. 背景：
+-- 有50W个京东店铺，每个顾客访客访问任何一个店铺的任何一个商品时，都会产生一个访问日志，访问日志存储的表名
+-- 2. 表名：visit
+--    字段名：user_id,shop
+-- 3. 需求:
+-- ① 创建表
+-- ② 每个店铺的UV（访客数）
+-- ③ 每个店铺访问次数top3的访客信息。输出店铺名称、访客id、访问次数
+create table visit(
+    user_id string,
+    shop string
+)
+row format delimited fields terminated by '\t';
+
+load data local inpath '/opt/module/hive/datas/visit.txt'  into table visit;
+
+-- 每个店铺的访问次数
+select
+    shop,
+    count(user_id) uv
+from visit
+group by shop;
+
+-- 每个店铺的访问次数（效果与上面group等价）
+with t as (
+    select
+    shop,
+    count(user_id) over(partition by shop) uv
+    from visit
+)
+select distinct t.shop, t.uv
+from t;
+
+
+-- 每个店铺的访客数
+select
+    shop,
+    count(distinct user_id) uv
+from visit
+group by shop;
+
+-- 统计每个店铺，每个用户总访问次数，对shop,user_id进行开窗，开窗函数count
+select
+    shop,
+    user_id,
+    count(user_id) over (partition by shop, user_id) user_count
+from visit;
+
+-- 在上述基础上，进行分组，达到去重的效果
+with t as (
+    select
+    shop,
+    user_id,
+    count(user_id) over (partition by shop, user_id) user_count
+from visit
+)
+select
+    t.shop,
+    t.user_id,
+    t.user_count
+from t
+group by t.shop, t.user_id, t.user_count ;
+
+-- 在上述的基础上，增加排序函数，对用户访问次数进行排序，开窗函数rank，对商店进行分区，并对用户访问次数进行降序排序
+with t as (
+    select
+    shop,
+    user_id,
+    count(user_id) over (partition by shop, user_id) user_count
+from visit
+)
+select
+    t.shop,
+    t.user_id,
+    t.user_count,
+    rank() over (partition by t.shop order by t.user_count desc ) rk
+from t
+group by t.shop, t.user_id, t.user_count ;
+
+-- 在上述基础上，嵌套查询，对排名小于3的进行筛选出来
+select
+    t2.shop, user_id, user_count, rk
+from (
+        with t as (
+        select
+        shop,
+        user_id,
+        count(user_id) over (partition by shop, user_id) user_count
+    from visit
+    )
+    select
+        t.shop,
+        t.user_id,
+        t.user_count,
+        rank() over (partition by t.shop order by t.user_count desc ) rk
+    from t
+    group by t.shop, t.user_id, t.user_count
+) t2
+where t2.rk <= 3;
+
