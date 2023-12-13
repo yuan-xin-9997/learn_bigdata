@@ -369,8 +369,110 @@ from
 where t2.rk <= 10;
 
 -- 统计上传视频最多的用户Top10以及他们上传的视频观看次数在前20的视频
+-- （1）统计上传视频最多的用户Top10
+select
+    uploader
+from gulivideo_user_orc
+order by videos
+limit 10;
+
+-- (2)他们上传的视频观看次数在前20的视频
+select
+    go.uploader,
+    go.videoid,
+    go.views,
+    rank() over (partition by go.uploader order by go.views desc ) rk
+from
+(
+    select
+    uploader
+    from gulivideo_user_orc
+    order by videos
+    limit 10
+) t1 join gulivideo_orc go on t1.uploader = go.uploader;
 
 
+select
+    *
+from
+    (
+     select
+    go.uploader,
+    go.videoid,
+    go.views,
+    rank() over (partition by go.uploader order by go.views desc ) rk
+    from
+    (
+        select
+        uploader
+        from gulivideo_user_orc
+        order by videos
+        limit 10
+    ) t1 join gulivideo_orc go on t1.uploader = go.uploader
+) t2 where t2.rk <= 20;
 
 
+-- (3)他们上传的视频观看次数在全网的观看次数在前20的视频
+select
+    go.uploader,
+    go.videoid,
+    go.views
+from
+(
+    select
+    uploader
+    from gulivideo_user_orc
+    order by videos
+    limit 10
+) t1 join gulivideo_orc go on t1.uploader = go.uploader;
 
+select
+    t2.uploader,
+    t2.videoId,
+    t2.views
+from
+    (
+        select
+            go.uploader,
+            go.videoid,
+            go.views
+        from
+        (
+            select
+            uploader
+            from gulivideo_user_orc
+            order by videos
+            limit 10
+        ) t1 join gulivideo_orc go on t1.uploader = go.uploader
+    ) t2;
+
+select
+    t3.videoId,
+    t3.views
+from (
+        select
+            t2.uploader,
+            t2.videoId,
+            t2.views
+        from
+            (
+                select
+                    go.uploader,
+                    go.videoid,
+                    go.views
+                from
+                (
+                    select
+                    uploader
+                    from gulivideo_user_orc
+                    order by videos
+                    limit 10
+                ) t1 join gulivideo_orc go on t1.uploader = go.uploader
+            ) t2
+     ) t3 join (
+         select
+             videoId
+         from gulivideo_orc
+         order by `views` desc
+         limit 20
+) t4 on t3.videoId=t4.videoId;
