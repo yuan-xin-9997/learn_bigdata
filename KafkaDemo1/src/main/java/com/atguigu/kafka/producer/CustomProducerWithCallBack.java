@@ -34,6 +34,7 @@ public class CustomProducerWithCallBack {
             // 5. 创建producerRecord
             final ProducerRecord<String, String> producerRecord = new ProducerRecord<String, String>(
                     "first",
+                    i+"",
                     message
             );
 

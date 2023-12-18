@@ -1,4 +1,4 @@
-package com.atguigu.partitioner;
+package com.atguigu.kafka.partitioner;
 
 import org.apache.kafka.clients.producer.Partitioner;
 import org.apache.kafka.common.Cluster;
@@ -19,7 +19,7 @@ public class CustomerPartitioner implements Partitioner {
         // 3. 获取分区个数
         Integer partitionNumber = cluster.partitionCountForTopic(topic);
         // 4. 计算分区
-        int partition = keyHashCode % partitionNumber;
+        int partition = Math.abs(keyHashCode) % partitionNumber;
         return partition;
     }
 
