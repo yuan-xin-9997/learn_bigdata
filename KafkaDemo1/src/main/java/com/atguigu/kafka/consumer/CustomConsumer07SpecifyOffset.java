@@ -10,7 +10,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Properties;
 
-public class CustomConsumer01 {
+public class CustomConsumer07SpecifyOffset {
     public static void main(String[] args) {
         // 1. 创建配置对象
         Properties properties = new Properties();
@@ -18,8 +18,11 @@ public class CustomConsumer01 {
         properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
 
+        // ============================指定Offset消费=======================================
+        properties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+
         // group id
-        properties.put(ConsumerConfig.GROUP_ID_CONFIG, "group10");
+        properties.put(ConsumerConfig.GROUP_ID_CONFIG, "group13");
 
 
         // 2. 创建kafka消费者对象
@@ -43,6 +46,10 @@ public class CustomConsumer01 {
                 long offset = consumerRecord.offset();
                 System.out.println("数据： "+value+", 分区"+partition+", 偏移量"+offset);
             }
+
+            // 7. 手动提交offset
+//             consumer.commitSync(); // 同步提交
+//            consumer.commitAsync(); // 异步提交
         }
     }
 }

@@ -10,7 +10,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Properties;
 
-public class CustomConsumer01 {
+public class CustomConsumer06HandCommitOffset {
     public static void main(String[] args) {
         // 1. 创建配置对象
         Properties properties = new Properties();
@@ -18,8 +18,14 @@ public class CustomConsumer01 {
         properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
 
+        // ============================自动提交offset参数=======================================
+        // 是否自动提交offset
+        properties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
+        // 提交offset的时间周期，默认5s，
+        properties.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, "5000");
+
         // group id
-        properties.put(ConsumerConfig.GROUP_ID_CONFIG, "group10");
+        properties.put(ConsumerConfig.GROUP_ID_CONFIG, "group11");
 
 
         // 2. 创建kafka消费者对象
@@ -43,6 +49,10 @@ public class CustomConsumer01 {
                 long offset = consumerRecord.offset();
                 System.out.println("数据： "+value+", 分区"+partition+", 偏移量"+offset);
             }
+
+            // 7. 手动提交offset
+             consumer.commitSync(); // 同步提交
+//            consumer.commitAsync(); // 异步提交
         }
     }
 }

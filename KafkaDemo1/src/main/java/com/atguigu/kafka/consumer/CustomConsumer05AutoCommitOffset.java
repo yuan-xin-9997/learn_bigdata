@@ -10,13 +10,19 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Properties;
 
-public class CustomConsumer01 {
+public class CustomConsumer05AutoCommitOffset {
     public static void main(String[] args) {
         // 1. 创建配置对象
         Properties properties = new Properties();
         properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "hadoop102:9092");
         properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+
+        // ============================自动提交offset参数=======================================
+        // 是否自动提交offset
+        properties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
+        // 提交offset的时间周期，默认5s，
+        properties.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, "5000");
 
         // group id
         properties.put(ConsumerConfig.GROUP_ID_CONFIG, "group10");

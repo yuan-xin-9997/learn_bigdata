@@ -1,16 +1,13 @@
 package com.atguigu.kafka.consumer;
 
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.common.serialization.StringDeserializer;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Properties;
 
-public class CustomConsumer01 {
+public class CustomConsumer03Group {
     public static void main(String[] args) {
         // 1. 创建配置对象
         Properties properties = new Properties();
@@ -18,8 +15,13 @@ public class CustomConsumer01 {
         properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
 
+        // 修改分区分配策略为roundrobin
+        // properties.put(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, RoundRobinAssignor.class.getName());
+        // 修改分区分配策略为粘性分区策略
+        properties.put(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, StickyAssignor.class.getName());
+
         // group id
-        properties.put(ConsumerConfig.GROUP_ID_CONFIG, "group10");
+        properties.put(ConsumerConfig.GROUP_ID_CONFIG, "group06");
 
 
         // 2. 创建kafka消费者对象
@@ -27,8 +29,7 @@ public class CustomConsumer01 {
 
         // 3. 指定消费者订阅Topic
         ArrayList<String> topics = new ArrayList<>();
-//        topics.add("first");
-        topics.add("atguigu");
+        topics.add("first");
         consumer.subscribe(topics);
 
         // 4. 不断轮询拉去数据

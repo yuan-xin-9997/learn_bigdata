@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+	@Description: log4j2配置文件
+
+-->
+
+<!--
+	日志级别以及优先级排序: OFF > FATAL > ERROR > WARN > INFO > DEBUG > TRACE > ALL
+-->
+<!--
+	onMatch：匹配；onMismatch：不匹配；
+	ACCEPT：日志会被立即处理，不再经过剩余过滤器；
+	NEUTRAL：有序列表里的下个过滤器过接着处理日志；
+	DENY：日志将立即被抛弃不再经过其他过滤器；
+-->
+<!--
+	输出日志格式：
+	%d{yyyy-MM-dd HH:mm:ss, SSS} : 日志生产时间
+	%p : 日志输出格式
+	%c : Logger的名称
+	%m : 日志内容，即 Logger.info("message")
+	%n : 换行符
+	%C : Java类名
+	%L : 日志输出所在行数
+	%M : 日志输出所在方法名
+	hostName : 本地机器名
+	hostAddress : 本地ip地址
+-->
+
+<Configuration status="WARN" monitorInterval="30">
+
+	<Properties>
+		<Property name="logBaseDirPath">${sys:base.dir}/logs</Property>
+		<Property name="logPattern">[%d{yyyy-MM-dd HH:mm:ss:SSS}] [%5p] - %l - %m%n</Property>
+	</Properties>
+
+	<!--先定义所有的Appender-->
+	<Appenders>
+
+		<!-- 输出日志到控制台 -->
+		<!-- 输出 debug 以上级别的日志 -->
+		<Console name="console" target="SYSTEM_OUT">
+			<ThresholdFilter level="DEBUG" onMatch="ACCEPT" onMismatch="DENY"/>
+			<PatternLayout pattern="${logPattern}"/>
+		</Console>
+
+		<!-- 输出 debug 及以上级别的日志 -->
+<!--		<File name="file" fileName="${logBaseDirPath}/InitLog.log" append="false">-->
+<!--			<ThresholdFilter level="DEBUG" onMatch="ACCEPT" onMismatch="DENY"/>-->
+<!--			<PatternLayout pattern="${logPattern}"/>-->
+<!--		</File>-->
+
+	</Appenders>
+
+	<!-- 定义Logger -->
+	<Loggers>
+		<!-- 根日志记录器 -->
+		<Root level="INFO">
+			<AppenderRef ref="console"/>
+<!--			<AppenderRef ref="file"/>-->
+		</Root>
+
+		<!-- druid 日志 -->
+<!--		<Logger name="com.alibaba.druid" level="INFO"/>-->
+
+		<!-- mybatis sql 语句日志 -->
+<!--		<Logger name="com.sfit.pcm.mapper" level="OFF"/>-->
+	</Loggers>
+</Configuration>
