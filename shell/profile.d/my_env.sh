@@ -17,3 +17,6 @@ export PATH=$PATH:$KAFKA_HOME/bin
 #FLUME_HOME
 export FLUME_HOME=/opt/module/flume/
 export PATH=$PATH:$FLUME_HOME/bin
+#MAXWELL_HOME
+export MAXWELL_HOME=/opt/module/maxwell/
+export PATH=$PATH:$MAXWELL_HOME/bin
