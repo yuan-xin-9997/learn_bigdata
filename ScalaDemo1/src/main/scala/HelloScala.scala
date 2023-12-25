@@ -5,5 +5,8 @@ object HelloScala {
 
     // scala的方法调用
     println("hello scala")
+
+    val v = for(i <- 1 to 10) yield i * 10
+    println(v)
   }
 }
