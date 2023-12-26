@@ -1,6 +1,6 @@
 package com.atguigu.chapter05
 
-object $2_MethodSimple {
+object $02_MethodSimple {
   /**
    *
    * def 方法名(参数名:类型, ...):返回值类型={方法体}

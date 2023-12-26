@@ -30,6 +30,7 @@ object $03_MethodParameter {
     println(paths)
     // 集合不可以传递给可变参数函数，如果要传，则需要使用:_*
     readPaths(paths:_*)
+    // add.apply(1,2)
   }
 
   def add(x:Int, y:Int):Int=x+y

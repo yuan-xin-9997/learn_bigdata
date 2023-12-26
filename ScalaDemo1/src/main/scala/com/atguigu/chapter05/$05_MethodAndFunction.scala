@@ -21,6 +21,13 @@ object $05_MethodAndFunction {
     // 方法转换成函数：方法可以手动转换成函数，使用方法名 _ 转换
     val f = m2 _
     println(f(5))
+
+
+    // apply方法
+    // 方法没有apply方法
+    println(m1(1))
+    // 函数有apply方法
+    println(func.apply(10))
   }
 
   // 方法重载

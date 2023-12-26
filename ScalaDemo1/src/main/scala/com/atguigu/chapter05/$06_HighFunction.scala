@@ -3,6 +3,17 @@ package com.atguigu.chapter05
 
 /**
  * 高阶函数：以函数作为参数/返回值的方法或函数，称之为高阶函数
+ *
+ * 函数式编程：
+ *  遍历（foreach）
+    映射（map）
+    映射扁平化（flatmap）
+    过滤（filter）
+    是否存在（exists）
+    排序（sorted、sortBy、sortWith）
+    分组（groupBy）
+    聚合计算（reduce）
+    折叠（fold）
  */
 object $06_HighFunction {
   def main(args: Array[String]): Unit = {
