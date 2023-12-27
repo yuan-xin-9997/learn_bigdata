@@ -48,5 +48,7 @@ object $03_ConstructMethod {
     val person2 = new Person("red")
     println(person2.color)
     println(person2.age)
+    println(person2.name)
+    println(person2.age)
   }
 }
