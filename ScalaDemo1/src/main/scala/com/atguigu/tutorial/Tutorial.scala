@@ -1,7 +1,10 @@
-package com.atguigu
+package com.atguigu.tutorial
 
-import scala.collection.mutable.ArrayBuffer
-import scala.collection.mutable.ListBuffer
+
+
+import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+import scala.collection.mutable.Set
+import scala.collection.mutable.Map
 
 /**
  * 来源：https://mp.weixin.qq.com/s/E_Y2qZkNiDY1uE1I3uN47Q
@@ -13,6 +16,9 @@ object Tutorial {
     tuple_example()
     list_example()
     set_example()
+    map_example()
+    iterator_example()
+    function_programming_example()
   }
 
   // 数组：scala中数组的概念是和Java类似。数组里面元素类型需要一致
@@ -36,9 +42,9 @@ object Tutorial {
     //设置第1个元素为110
     //打印第1个元素
     val a = new Array[Int](100)
-    a(0) = 110  // todo 定长Array长度不可以变，但是元素可以变
+    //a(0) = 110  // todo 定长Array长度不可以变，但是元素可以变
     println(a)
-    println(a(0))
+    //println(a(0))
     // a += "0"
 
     // 示例;定义一个包含以下元素的数组 :"java", "scala", "python"
@@ -84,7 +90,7 @@ object Tutorial {
     //从该变长数组删除"hadoop"元素
     //再将一个数组，该数组包含"hive", "sqoop"追加到变长数组中
     // 定义变长数组
-    
+
     val e = ArrayBuffer("hadoop", "spark", "flink")
 
     // 追加一个元素
@@ -496,8 +502,302 @@ object Tutorial {
     println(a13.diff(b13))
   }
 
+  /**
+   * Set(集)是代表没有重复元素的集合。Set具备以下性质：
+   *
+   * 元素不重复
+   * 不保证插入顺序
+   * 和List正好相反, List:
+   *
+   * 元素可以重复
+   * 保证插入顺序
+   * scala中的集也分为两种，一种是不可变集，另一种是可变集。
+   */
   def set_example(): Unit = {
     println("===========set============")
+
+    // 不可变集 set
+    //定义
+    //语法
+    //
+    //创建一个空的不可变集，语法格式：
+    //
+    //val/var 变量名 = Set[类型]()
+    //给定元素来创建一个不可变集，语法格式：
+    //
+    //val/var 变量名 = Set(元素1, 元素2, 元素3...)
+
+    //示例一
+    //定义一个空的不可变集
+    //参考代码
+    val a = Set[Int]()
+    println(a);
+
+    // 示例二
+    //定义一个不可变集，保存以下元素：1,1,3,2,4,8
+    //
+    //参考代码
+    //
+    //scala>
+    val a1 = Set(1,1,3,2,5,9)
+    println(a1)
+    //// 可以看到 1. 去重了 2. 顺序乱了   这些就是Set的特性
+
+    // 基本操作
+    //获取集的大小（size）
+    //遍历集（和遍历数组一致）
+    //添加一个元素，生成一个Set（+）
+    //拼接两个集，生成一个Set（++）
+    //拼接集和列表，生成一个Set（++）
+
+    // 示例
+    //创建一个集，包含以下元素：1,1,2,3,4,5
+    //获取集的大小
+    //遍历集，打印每个元素
+    //删除元素1，生成新的集
+    //拼接另一个集（6, 7, 8)
+    //拼接一个列表(6,7,8, 9)
+    //参考代码
+    // 创建集
+    //scala> val
+    val a2 = Set(1,1,2,3,4,5)
+    // 获取集的大小
+    println(a2.size)
+    // 遍历集
+    for(i <- a2) {
+      println(i)
+    }
+
+    // 删除一个元素
+    println(a2)
+    println(a2 - 1)
+
+    // 拼接两个集
+    println(a2 ++ Set(6, 7, 8))
+
+    // 拼接集和列表
+    println(a2 ++ List(6, 7, 8, 9))
+
+    // 注意, 每次对a的操作, 都是生成了一个新的Set, a自身是不会变化的. 不仅仅指a是不可变集, 同时a 也是val定义的
+    // 如果是var 定义的
+    var a3 = Set(1, 2, 3, 4, 5)
+
+    println(a3)
+    a3 = a3 + 6
+    println(a3)
+
+    //// 实际上a 虽然+ 1了 ,但是操作前后的两个a 不是同一个对象.
+    //// Set是不可变的, 如果+1 就是生成了新的Set ,同时因为a是var定义的, 所以就可以重新将这个新生成的结果
+
+    // 十三、可变集
+    //定义
+    //可变集合不可变集的创建方式一致，只不过需要提前导入一个可变集类。
+    //
+    //手动导入：import scala.collection.mutable.Set
+
+    // 示例
+    //定义一个可变集，包含以下元素: 1,2,3, 4
+    //添加元素5到可变集中
+    //从可变集中移除元素1
+
+    val a4 = Set(1, 2, 3, 4)
+    println(a4)
+
+    // 添加元素
+     a4 += 5
+    println(a4)
+
+    // 删除元素
+    a4 -= 1
+    println(a4)
+  }
+
+  /**
+   * 映射：Map可以称之为映射。它是由键值对组成的集合。在scala中，Map也分为不可变Map和可变Map。
+   */
+  def map_example(): Unit = {
+    println("============map=============")
+
+    // 不可变Map
+    //定义
+    //语法
+    //val/var map = Map(键->值, 键->值, 键->值...) // 推荐，可读性更好
+    //val/var map = Map((键, 值), (键, 值), (键, 值), (键, 值)...)
+
+    //示例
+    //定义一个映射，包含以下学生姓名和年龄数据
+    //"zhangsan", 30
+    //"lisi", 40
+    //获取zhangsan的年龄
+
+    //参考代码
+     val map = Map("zhangsan"->30, "lisi"->40)
+    println(map)
+
+    //// 根据key获取value
+    println(map("zhangsan"))
+
+
+    // 可变Map
+    //定义
+    //定义语法与不可变Map一致。但定义可变Map需要手动导入import scala.collection.mutable.Map
+
+    // 示例
+    //定义一个映射，包含以下学生姓名和年龄数据
+    //
+    //"zhangsan", 30
+    //"lisi", 40
+    //修改zhangsan的年龄为20
+    //
+    val map1 = Map("zhangsan"->30, "lisi"->40)
+    println(map1)
+
+    //// 修改value
+    map1("zhangsan") = 20
+    println(map1)
+
+    // Map基本操作
+    //获取值(map(key))
+    //获取所有key（map.keys）
+    //获取所有value（map.values）
+    //遍历map集合
+    //getOrElse
+    //增加key,value对
+    //删除key
+
+    // 示例
+    //定义一个映射，包含以下学生姓名和年龄数据
+    //
+    //"zhangsan", 30
+    //"lisi", 40
+    //获取zhangsan的年龄
+    //获取所有的学生姓名
+    //获取所有的学生年龄
+    //打印所有的学生姓名和年龄
+    //获取wangwu的年龄，如果wangwu不存在，则返回-1
+    //新增一个学生：wangwu, 35
+    //将lisi从可变映射中移除
+    val map2 = Map("zhangsan"->30, "lisi"->40)
+    println(map)
+    println(map2("zhangsan"))
+    // println(map2("zhangsan1")) // key not found: zhangsan1
+    println(map2.keys)
+    println(map2.values)
+    for (elem <- map2) {
+      println(elem)
+    }
+    for((x,y) <- map2) println(s"$x $y")
+    println(map2.getOrElse("wangwu", -1))
+    map2 += ("wangwu"->35)
+    println(map2)
+    map2 + (("ppp", 10), ("iii", 9)) // 或者这样  map + ("ppp" ->10, "iii" -> 9)
+    println(map2)
+    map2 - "lisi"
+    println(map2)
+
+  }
+
+  /**
+   * 14.1  iterator迭代器
+   * scala针对每一类集合都提供了一个迭代器（iterator）用来迭代访问集合
+   *
+   * 使用迭代器遍历集合
+   * 使用iterator方法可以从集合获取一个迭代器
+   * 迭代器的两个基本操作
+   * hasNext——查询容器中是否有下一个元素
+   * next——返回迭代器的下一个元素，如果没有，抛出NoSuchElementException
+   * 每一个迭代器都是有状态的(只能用一次, 内部指针只走一次, 走到最后就结束了, 不会再回到开头, 除非你再取得一个新的迭代器)
+   * 迭代完后保留在最后一个元素的位置
+   * 再次使用则抛出NoSuchElementException
+   * 可以使用while或者for来逐个返回元素
+   */
+  def iterator_example(): Unit = {
+    println("===========迭代器===========")
+
+    // 定义一个列表，包含以下元素：1,2,3,4,5
+    //使用while循环和迭代器，遍历打印该列表
+    val list = List(1,2,3,4)
+    println(list)
+    val iter = list.iterator
+    while(iter.hasNext){
+      println(iter.next())
+    }
+
+    // 示例
+    //
+    //定义一个列表，包含以下元素：1,2,3,4,5
+    //使用for 表达式和迭代器，遍历打印该列表
+    val list1 = List(1,2,3,4,5)
+    println(list1)
+    for (elem <- list1) {
+      println(elem)
+    }
+  }
+
+
+  /**
+   * 我们将来使用Spark/Flink的大量业务代码都会使用到函数式编程。下面的这些操作是学习的重点。
+   * 现在我们将会逐渐接触函数式编程的方式.
+   * 比如我们要说的第一个foreach方法, 就是一个典型的函数式编程方式.
+   * 我们将一个函数当做参数 传递给另一个方法/函数
+   *
+   *
+   * 遍历（foreach）
+   * 映射（map）
+   * 映射扁平化（flatmap）
+   * 过滤（filter）
+   * 是否存在（exists）
+   * 排序（sorted、sortBy、sortWith）
+   * 分组（groupBy）
+   * 聚合计算（reduce）
+   * 折叠（fold）
+   */
+  def function_programming_example(): Unit = {
+    println("============函数式编程============")
+
+    // 遍历 | foreach
+    //之前，学习过了使用for表达式来遍历集合。我们接下来将学习scala的函数式编程，使用foreach方法来进行遍历、迭代。它可以让代码更加简洁。
+    //
+    //用途:
+    //
+    //foreach 会帮我们对集合中的每一个元素取出来进行处理, 处理的逻辑由我们自行定义
+    // 示例
+    //有一个列表，包含以下元素1,2,3,4，请使用foreach方法遍历打印每个元素
+    val a = List(1,2,3,4)
+    val func = (x:Int)=>println(x)
+    a.foreach(func)
+    a.foreach(x=>println(x))
+    a.foreach(println(_))
+
+
+    // 十六、映射 | map
+    //集合的映射操作是将来在编写Spark/Flink用得最多的操作，是我们必须要掌握的。因为进行数据计算的时候，就是一个将一种数据类型转换为另外一种数据类型的过程。
+    //
+    //map方法接收一个函数，将这个函数应用到每一个元素，返回一个新的列表
+    //
+    //和foreach不同的是, map将处理好的元素封装到新的列表中, 并返回
+    //
+    //而foreach不会返回我们新的列表
+    //
+    //所以一般视使用场景, 来选择带返回的map还是不返回的foreach
+    // 用法
+    //方法签名
+    //def map[B](f: (A) ⇒ B): TraversableOnce[B]
+    // 案例一
+    //创建一个列表，包含元素1,2,3,4
+    //对List中的每一个元素加1
+    println(a)
+    println(a.map((x: Int) => x + 1))
+
+
+    // 扁平化映射 | flatMap
+    //扁平化映射也是将来用得非常多的操作，也是必须要掌握的。
+    // 定义
+    //可以把flatMap，理解为先map，然后再flatten
+    // 就是说, 我们对待处理列表, 正常我们处理它 需要 先对其进行map操作, 然后再进行flatten操作 这样两步操作才可以得到我们想要的结果.
+    //如果我们有这样的需求, 我们就可以使用flatMap( 此方法帮我们实现 先map 后flatten的操作)
+
+
   }
 
 

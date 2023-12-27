@@ -9,7 +9,7 @@ public class Test2 {
 //        p1 = p2;
 
         // Java 泛型非变
-        A<Person> a1 = new A<Person>();
+        A<Person1> a1 = new A<Person1>();
         A<Student> a2 = new A<Student>();
         // a1 = a2; // 不可以赋值
     }
@@ -22,4 +22,4 @@ class A<T>{
 
 class Person {}
 
-class Student extends Person{}
+class Student extends Person1 {}
