@@ -2,12 +2,16 @@ package com.atguigu.tutorial
 
 
 
+import com.atguigu.chapter05functionalprogramming.$12_Map
+
+import java.util
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.collection.mutable.Set
 import scala.collection.mutable.Map
 
 /**
- * 来源：https://mp.weixin.qq.com/s/E_Y2qZkNiDY1uE1I3uN47Q
+ * 来源：
+ *      https://mp.weixin.qq.com/s/E_Y2qZkNiDY1uE1I3uN47Q
  */
 object Tutorial {
 
@@ -797,8 +801,233 @@ object Tutorial {
     // 就是说, 我们对待处理列表, 正常我们处理它 需要 先对其进行map操作, 然后再进行flatten操作 这样两步操作才可以得到我们想要的结果.
     //如果我们有这样的需求, 我们就可以使用flatMap( 此方法帮我们实现 先map 后flatten的操作)
 
+    // map是将列表中的元素转换为一个List
+    // flatten再将整个列表进行扁平化
+    // def flatMap[B](f: (A) ⇒ GenTraversableOnce[B]): TraversableOnce[B]
+    // 案例
+    //案例说明
+    //
+    //有一个包含了若干个文本行的列表："hadoop hive spark flink flume", "kudu hbase sqoop storm"
+    //获取到文本行中的每一个单词，并将每一个单词都放到列表中
+
+    // 步骤
+    //使用map将文本行拆分成数组
+    //再对数组进行扁平化
+    //val arr = Array("hadoop hive spark flink flume", "kudu hbase sqoop storm")
+    //println(arr)
+//    println($12_Map.map(arr, (x: String) => x.split(" ")).toList)
+    val list = List("hadoop hive spark flink flume", "kudu hbase sqoop storm")
+    println(list)
+    println(map(list, (x: String) => x.split(" ").toList))
+//    val tmp = "hadoop hive spark flink flume"
+//    println(tmp.split(" ").toList)
+
+    println(list.map((x: String) => x.split(" ")))
+    println(list.map((x: String) => x.split(" ")).flatten)
+    for (elem <- list.map((x: String) => x.split(" "))) {
+      //println(elem)
+      println(elem.toList)
+    }
+
+    // 使用flatMap简化操作
+    println(list.map((x: String) => x.split(" ")).flatten)
+
+
+    // 十八、过滤 | filter
+    //过滤符合一定条件的元素
+    // 定义
+    //方法签名
+    //
+    //def filter(p: (A) ⇒ Boolean): TraversableOnce[A]
+
+    //案例
+    //有一个数字列表，元素为：1,2,3,4,5,6,7,8,9
+    //
+    //请过滤出所有的偶数
+    println("filter")
+    val list1 = List(1,2,3,4,5,6,7,8,9)
+    println(filter(list1, (x: Int) => x % 2 == 0))
+    println(list1.filter((x: Int) => x % 2 == 0))
+
+
+    // 十九、排序
+    //在scala集合中，可以使用以下几种方式来进行排序
+    //
+    //sorted默认排序
+    //sortBy指定字段排序
+    //sortWith自定义排序
+
+    // 默认排序 | sorted
+    //示例
+    //
+    //定义一个列表，包含以下元素: 3, 1, 2, 9, 7
+    //对列表进行升序排序
+    val list2 = List(3, 1, 2, 9, 7)
+    println(list2.sorted)
+    println(list2)
+
+    //指定字段排序 | sortBy
+    //根据传入的函数转换后，再进行排序
+    // **方法签名**
+    //def sortBy[B](f: (A) ⇒ B): List[A]
+    // 示例
+    //
+    //有一个列表，分别包含几下文本行："01 hadoop", "02 flume", "03 hive", "04 spark"
+    //请按照单词字母进行排序
+    val list3 = List("01 hadoop", "02 flume", "03 hive", "04 spark")
+    println(list3.sortBy((x: String) => x.split(" ")(1)))
+
+    // 自定义排序 | sortWith
+    //自定义排序，根据一个函数来进行自定义排序
+    //
+    //
+    //方法签名
+    //
+    //def sortWith(lt: (A, A) ⇒ Boolean): List[A]
+    // 示例
+    //有一个列表，包含以下元素：2,3,1,6,4,5
+    //使用sortWith对列表进行降序排序
+    val list4 = List(2,3,1,6,4,5)
+    println(list4.sortWith((x: Int, y: Int) => if (x < y) true else false))
+    println(list4.sortWith((x: Int, y: Int) => if (x > y) true else false))
+    println(list4.sortWith(_ < _))
+    println(list4.sortWith(_ > _))
+
+
+    // 二十、分组 | groupBy
+    //。我们如果要将数据按照分组来进行统计分析，就需要使用到分组方法
+    //定义
+    //groupBy表示按照函数将列表分成不同的组
+    //方法签名
+    //def groupBy[K](f: (A) ⇒ K): Map[K, List[A]]
+    println("分组")
+    // 示例
+    //有一个列表，包含了学生的姓名和性别:
+    //
+    //"张三", "男"
+    //"李四", "女"
+    //"王五", "男"
+    //请按照性别进行分组，统计不同性别的学生人数
+    //
+    //步骤
+    //
+    //定义一个元组列表来保存学生姓名和性别
+    //按照性别进行分组
+    //将分组后的Map转换为列表：List(("男" -> 2), ("女" -> 1))
+    val list5 = List("张三"->"男", "李四"->"女", "王五"->"男")
+    println(list5)
+    // groupBy(list5, (x:Tuple)=>x(1))
+    println(list5.groupBy(_._2))
+    println(list5.groupBy(x=>x._2))
+    for (elem <- list5) {
+      println(elem)
+      //println(elem._1)
+      //println(elem._2)
+    }
+    //println(list5.map(x => x._1 -> x._2.size))
+    val list6 = list5.groupBy(x=>x._2)
+    println(list6)
+    println(list6.map(x => x._1 -> x._2.size)) // _1获取元素的第一个元素，_2获取第二个元素
+
+    println(groupBy(list5, x => x._2))
+
+
+    // 二十一、聚合操作
+    //聚合操作，可以将一个列表中的数据合并为一个。这种操作经常用来统计分析中
+    // 聚合 | reduce
+    //reduce表示将列表，传入一个函数进行聚合计算
+    //
+    //定义
+    //方法签名
+    //
+    //def reduce[A1 >: A](op: (A1, A1) ⇒ A1): A1
+    //[!NOTE]
+    //
+    //reduce和reduceLeft效果一致，表示从左到右计算
+    //
+    //reduceRight表示从右到左计算
+    // 案例
+    //定义一个列表，包含以下元素：1,2,3,4,5,6,7,8,9,10
+    //使用reduce计算所有元素的和
+    println("聚合")
+    val list7 = List(1,2,3,4,5,6,7,8,9,10)
+    println(list7.reduce((x: Int, y: Int) => x + y))
+    println(list7.reduce(_+_))
+    println(list7.reduceLeft(_ + _))
+    println(list7.reduceRight(_ + _))
+
+    println(reduce(list7, (x: Int, y: Int) => x + y))
+
+
+    // 折叠 |  fold
+    //fold与reduce很像，但是多了一个指定初始值参数
+    //
+    //定义
+    //方法签名
+    //
+    //def fold[A1 >: A](z: A1)(op: (A1, A1) ⇒ A1): A1
+    // [!NOTE]
+    //
+    //fold和foldLet效果一致，表示从左往右计算
+    //
+    //foldRight表示从右往左计算
+    println("折叠")
+    // 案例
+    //定义一个列表，包含以下元素：1,2,3,4,5,6,7,8,9,10
+    //使用fold方法计算所有元素的和
+    val list8 = List(1,2,3,4,5,6,7,8,9,10)
+    println(list8.fold(0)((x: Int, y: Int) => x + y))
+    println(list8.fold(10)((x: Int, y: Int) => x + y))
 
   }
 
+  def map(list: List[String], func: (String) => Any) = {
+    for (elem <- list) yield {
+      // elem.length
+      // elem.charAt(0)
+      func(elem)
+    }
+  }
+
+  def filter(list: List[Int], func: Int => Boolean) = {
+    for (elem <- list if (func(elem))) yield {
+      elem
+    }
+  }
+
+  def groupBy(list: List[Tuple2[String, String]], func: Tuple2[String, String] => String) = {
+    // 创建Java Map对象
+    val resultMap = new util.HashMap[String, util.List[Tuple2[String, String]]]()
+
+    // val elem_arr = for (elem <- arr) {elem.split(" ")}
+    for (elem <- list) {
+      val key = func(elem)
+
+      if (resultMap.containsKey(key)) {
+        val list = resultMap.get(key)
+        list.add(elem)
+      } else {
+        val list = new util.ArrayList[Tuple2[String, String]]()
+        list.add(elem)
+        resultMap.put(key, list)
+      }
+    }
+    resultMap
+  }
+
+  def reduce(list: List[Int], func: (Int, Int) => Int) = {
+    var tmp = list(0)
+    for (elem <- 1 until list.length) {
+      tmp = func(tmp, list(elem))
+    }
+    tmp
+  }
+
+
+
+//  def flatten(list:List[String]): Unit = {
+//    val tmp = List()
+//
+//  }
 
 }
