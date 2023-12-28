@@ -27,10 +27,20 @@ object $12_Map {
     // 简化函数
     println(map(arr, x=>x.length).toList)
     println(map(arr, _.length).toList)
+    
+    println(map1(arr, (x:String)=>x.length))
   }
 
   def map(arr:Array[String], func:(String)=>Any)={
     for (elem <- arr) yield {
+      // elem.length
+      // elem.charAt(0)
+      func(elem)
+    }
+  }
+
+  def map1(arr: Array[String], func: (String) => Any) = {
+    for (elem <- arr) {
       // elem.length
       // elem.charAt(0)
       func(elem)

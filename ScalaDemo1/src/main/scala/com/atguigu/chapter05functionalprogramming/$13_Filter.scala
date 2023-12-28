@@ -26,6 +26,9 @@ object $13_Filter {
     println(filter(arr, (x)=>x%2!=0).toList)
     println(filter(arr, x=>x%2!=0).toList)
     println(filter(arr, _%2!=0).toList)
+
+
+    println(filter1(arr, (x:Int)=>x%2!=0).toList)
   }
 
 //  def filter(arr:Array[Int])={
@@ -45,6 +48,12 @@ object $13_Filter {
   def filter(arr: Array[Int], func:Int=>Boolean) = {
     for (elem <- arr if (func(elem))) yield {
       elem
+    }
+  }
+
+  def filter1(arr: Array[Int], func: Int => Boolean) = {
+    for (elem <- arr ) yield {
+      func(elem)
     }
   }
 
