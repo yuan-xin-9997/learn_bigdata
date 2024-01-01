@@ -124,12 +124,21 @@ object Test1 {
     // 统计每个省份菜的种类数最多的三个农贸市场
 
     // 1.是否需要过滤：需要，需要过滤脏数据
+    val filterProduct = product.filter(line => line.split("\t").size == 6)
+    println(filterProduct.size)
 
     // 2. 列裁剪，(省份、农贸市场名称、菜名)
     // List( (湖北省,A农贸市场,蔬菜),(),(),...)
+    val selectProduct = filterProduct.map(x => {
+      val arr = x.split("\t")
+      (arr(4), arr(3), arr.head)
+    })
+    println(selectProduct.size)
 
     // 3.去重[同一个省份、同一农贸市场，同一菜只有一条数据]
     // List( (湖北省,A农贸市场,蔬菜),(),(),...)
+    val distinctProduct = selectProduct.distinct
+    println(distinctProduct.size)
 
     // 4. 按照省份+农贸市场分组
     // Map(
@@ -137,18 +146,50 @@ object Test1 {
     //  (江西省,A农贸市场)->List(  (湖北省,A农贸市场,蔬菜A),(湖北省,A农贸市场,蔬菜B), )
     //
     // )
+    val groupedProduct = distinctProduct.groupBy({
+      case (province, market, fruit) => (province, market)
+    })
+    println(groupedProduct.head)
+    println(groupedProduct.size)
 
     // 5. 统计每个省份每个农贸市场的菜种类数
     // Map(  (湖北省,A农贸市场)->15, (江西省,A农贸市场)->15,   )
+    val groupProductProvince = groupedProduct.map(
+      x => (x._1, x._2.size)
+    )
+    println(groupProductProvince.size)
+    println(groupProductProvince.head)
 
     // 6. 按照省份分组
     // Map(
-    //    湖北省->List(    (湖北省,A农贸市场)->15,(湖北省,B农贸市场)->16    )
+    //    湖北省->Map (    (湖北省,A农贸市场)->15,(湖北省,B农贸市场)->16    )
     // )
+    val groupProvince = groupProductProvince.groupBy(
+      { case   ((province, market), num) => province }
+    )
+    println(groupProvince.size)
+    println(groupProvince.take(10))
 
     // 7. 对每个省份所有农贸市场数据，按照菜的种类排序取前三
+    val result = groupProvince.map(x => {
+      // x = 湖北省->Map (    (湖北省,A农贸市场)->15,(湖北省,B农贸市场)->16    )
+      val top3 = x._2.toList.sortBy(y => y._2).reverse.take(3)
+
+      // 去掉省份列
+      // val t3 = top3.map{case ((province, market), num) => (market, num)}
+      val t3 = top3.map(
+       {case ((province, market), num) => (market, num)}
+      )
+      // val t3 = top3.map(x=> (x._1._2, x._2))
+
+      // 拼接元组
+      (x._1, t3)
+    })
+    println(result.take(3))
+    println(result.size)
 
     // 8.打印结果
+    result.foreach(println)
 
   }
 

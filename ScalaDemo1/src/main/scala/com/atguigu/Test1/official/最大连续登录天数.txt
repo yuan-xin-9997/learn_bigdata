@@ -1,0 +1,28 @@
+
+select
+    id,
+    max(num)
+from (
+         select id,
+                datediff(max(dt), min(dt)) + 1 num
+         from (
+                  select id,
+                         dt,
+                         last_value(point, true)
+                                    over (partition by id order by dt range between unbounded preceding and current row ) login_point
+                  from (
+                           select id,
+                                  dt,
+                                  before_day,
+                                  if(datediff(dt, before_day) > 2 or before_day is null, concat(id, '_', dt),
+                                     null) point
+                           from (
+                                    select id,
+                                           date_format(dt, 'yyyy-MM-dd')                                         dt,
+                                           lag(date_format(dt, 'yyyy-MM-dd')) over (partition by id order by dt) before_day
+                                    from game_user
+                                ) t1
+                       ) t2
+              ) t3
+         group by id, login_point
+     ) t4 group by id
