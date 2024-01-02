@@ -107,24 +107,50 @@ object Test2 {
     //   List( (B,龙岗区,2020-07-15 10:35:15,2020-07-15 10:40:50), (B,龙华区,2020-07-15 11:02:08,2020-07-15 11:17:15)),
     //  ......
     // )
-    println("========slidingList========")
-    // sortedMap.toList.foreach(println)
-    val slidingList = sortedMap.map(x => {
+    println("========before slidingList========")
+    sortedMap.toList.foreach(println)
+    println(sortedMap.toList)
+    println("========after slidingList========")
+    val slidingList = sortedMap.toList.map(x => {
       val list = x._2.sliding(2).toList
       list
     }).flatten
     println(slidingList)
+    slidingList.foreach(println)
 
     //5、计算每次等客时间和区域
     println("================")
+    val durationList = slidingList.map(x => {
+      val region = x.head._2
+      val toTime = x.head._4
+      val fromTime = x.last._3
+      // 等客时间
+      val duration = (fromTime - toTime).toDouble / 1000
+      (region, duration)
+    })
+    println(durationList)
+    println(durationList.size)
+    durationList.foreach(println)
 
     //6、按照区域分组
     println("================")
+    val regionMap = durationList.groupBy(x => x._1)
+    println(regionMap)
+    println(regionMap.size)
+    regionMap.foreach(println)
 
     //7、计算每个区域的平均等客时间
     println("================")
+    val result = regionMap.map(x => {
+      val region = x._1
+      val count = x._2.size
+      val totalTime = x._2.map(y => y._2).sum
+      (region, totalTime / count)
+    })
 
     // 8. 打印结果
     println("================")
+    println(result)
+    result.foreach(println)
   }
 }
