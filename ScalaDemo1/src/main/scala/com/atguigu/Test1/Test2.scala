@@ -12,6 +12,7 @@ object Test2 {
 
     // 读取数据
     val datas = Source.fromFile("datas/taxi.txt").getLines().toList
+    println("========origin data========")
     println(datas)
     println(datas.size)
 
@@ -39,6 +40,7 @@ object Test2 {
       val toTime = formatter.parse(arr(4)).getTime
       (userID, toRegion, fromTime, toTime)
     })
+    println("========selectList========")
     println(selectList)
     println(selectList.size)
 
@@ -65,6 +67,7 @@ object Test2 {
     //
     // )
     //
+    println("========groupMap========")
     val groupedMap = selectList.groupBy(x => x._1)
     println(groupedMap)
 
@@ -89,6 +92,7 @@ object Test2 {
     //     )
     //
     // )
+    println("========sortedMap========")
     val sortedMap = groupedMap.map(x => {
       val sortedList = x._2.sortBy(y => y._3)
       (x._1, sortedList)
@@ -103,7 +107,8 @@ object Test2 {
     //   List( (B,龙岗区,2020-07-15 10:35:15,2020-07-15 10:40:50), (B,龙华区,2020-07-15 11:02:08,2020-07-15 11:17:15)),
     //  ......
     // )
-    println(sortedMap.toList)
+    println("========slidingList========")
+    // sortedMap.toList.foreach(println)
     val slidingList = sortedMap.map(x => {
       val list = x._2.sliding(2).toList
       list
@@ -111,15 +116,15 @@ object Test2 {
     println(slidingList)
 
     //5、计算每次等客时间和区域
-
+    println("================")
 
     //6、按照区域分组
-
+    println("================")
 
     //7、计算每个区域的平均等客时间
-
+    println("================")
 
     // 8. 打印结果
-
+    println("================")
   }
 }
