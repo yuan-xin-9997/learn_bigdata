@@ -1,0 +1,63 @@
+1、SparkSql概述
+	1、什么是SparkSQL
+		用于处理结构化数据的spark模块
+	2、使用场景: 离线
+	3、SparkSql的数据抽象
+		DataFrame
+			DataFrame类似mysql的表,有列名、列类型。
+			DataFrame只关注列,不关注行的类型
+			DataFrame其实就是DataSet[Row]
+		DataSet
+			DataSet类似mysql的表,有列名、列类型。
+			DataSet既关注列类型,也关注行的类型
+			DataSet是强类型
+2、SparkSql编程
+	1、创建sparksession对象: val spark = SparkSession.builder().appName(...).master("local[N]").getOrCreate()
+	2、DataFrame的创建
+		1、通过toDF方法创建
+			import spark.implicits._
+			rdd.toDF() / rdd.toDF(列名,...)
+			集合.toDF() / 集合.toDF(列名,...)
+			rdd/集合元素类型是样例类,转成DataFrame之后列名就是属性名
+			rdd/集合元素类型是元组,转成DataFrame之后列名就是_N,可以通过有参的toDF方法重定义列名[列名的个数必须与列的个数一致]
+		2、读取文件创建: spark.read.csv/json/text/parquet/orc/jdbc
+		3、通过其他DataFrame衍生: val df2 = df.filter/select/where/...
+		4、通过createDataFrame方法创建
+			val 列的信息 = StructType(Array(StructFiled(列名,列类型),...))
+			val 数据:RDD[Row] = ...
+			spark.createDataFrame(数据,列的信息)
+	3、DataSet的创建
+		1、通过toDS方法创建
+			import spark.implicits._
+			rdd.toDS
+			集合.toDS
+			rdd/集合元素类型是样例类,转成DataSet之后列名就是属性名
+			rdd/集合元素类型是元组,转成DataSet之后列名就是_N,可以通过有参的toDF方法重定义列名[列名的个数必须与列的个数一致]
+		2、读取文件创建: spark.read.textFile(..)
+		3、通过其他DataSet衍生: val ds2 = ds.map/flatMap/filter...
+		4、通过createDataSet方法创建
+			spark.createDataSet(集合/rdd)
+	4、spark编程方式
+		声明式: 使用SQL处理数据
+			1、将dataFrame/dataset数据集注册成表: df.createOrReplaceTempView("表名")
+			2、写sql操作数据: spark.sql("sql语句")
+		命令式: 使用API方法处理数据
+			列裁剪: selectExpr(列名,函数(列名) 别名,...)
+			过滤: filter(sql过滤条件)/where(sql过滤条件)
+			去重:
+				distinct: 所有列都相同才会去重
+				dropDumplicates(列名,...): 执行列相同就会去重
+	5、RDD、DataSet、DataFrame相互转换
+		RDD转DataFrame: rdd.toDF()/rdd.toDF(列名,...)
+		RDD转DataSet: rdd.toDS
+		DataFrame转RDD: 
+			val rdd:RDD[Row] = df.rdd
+			Row类型的取值: row.getAs[列的类型](列名)
+		DataSet转RDD: val rdd:RDD[DataSet行类型] = ds.rdd
+		DataSet转DataFrame: ds.toDF()
+		DataFrame转DataSet: val ds:DataSet[行的类型] = df.as[行的类型]
+			行类型可以指定为元组,元组的元素个数必须与列的个数一致,元组元素类型必须与列的类型对应或者能够自动转换。
+			行类型可以指定为样例类,样例类的属性名必须是列名,属性的类型必须与列的类型对应或者能够自动转换。
+	6、自定义UDF函数
+		1、定义方法/函数
+		2、将定义的方法/函数在sparksession中注册:spark.udf.register(sql使用的函数名,定义的函数对象)

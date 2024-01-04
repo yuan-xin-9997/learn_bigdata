@@ -1,0 +1,230 @@
+1、RDD概述
+	1、什么是RDD
+		RDD是弹性分布式数据集
+		RDD在代码是抽象类,代表的是弹性、不可变、可分区、元素可并行计算的集合。
+			弹性:
+				存储的弹性: RDD在计算过程中数据是通过内存传递的,如果内存不足会自动放入磁盘
+				计算的弹性: 在计算出错的时候会自动重试
+				容错的弹性: 如果数据丢失可以根据RDD的依赖关系重新计算得到数据
+				分区的弹性: 在读取文件的时候,RDD的分区数是根据文件的切片数据决定
+			不存储数据:RDD是不存储数据,RDD每个分区中其实就是一个Iterator迭代器,遍历一次迭代器不能使用了
+			不可变: RDD中只是封装了数据的处理逻辑,不存储数据,所以后续如果想要改变数据,需要生成新的RDD,新RDD中封装新的处理逻辑。
+			可分区: RDD为了实现分布式计算,会划分为多个分区,每个分区分布在不同的机器上处理不同的数据,但是每个分区的计算逻辑一样。
+			可并行计算: RDD多个分区之间可以并行计算的。
+	2、RDD五大特性
+		一组分区列表: RDD为了实现分布式计算,会划分为多个分区数据
+		作用在每个分区上的计算函数: 每个分区分布在不同的机器上处理不同的,计算逻辑一样
+		对于其他的RDD的依赖列表: RDD后续在计算出错的时候,会根据依赖关系重新计算得到数据,每个RDD在创建的时候都会记录依赖的RDD是谁
+		分区器[可选]: 只能作用在元素类型是KV键值对的RDD上,用于shuffle的时候决定数据落入子RDD哪个分区中
+		计算的优先位置[可选]: spark为了提高计算效率,会尽量将计算放入数据所在的位置,避免通过网络拉取数据,影响效率
+2、RDD的编程
+	1、RDD的创建
+		1、通过本地集合创建: sc.makeRDD(集合) / sc.sc.paralleize(集合)(集合)
+		2、通过读取文件创建: sc.textFile(path)
+		3、通过其他RDD衍生: val rdd = rdd1.map/filter/flatMap...
+	2、RDD的分区数
+		1、通过本地集合创建RDD: sc.parallelize(集合[,numSlices=defaultParallelism])
+			1、如果再创建RDD的时候有自己指定numSlices参数值,此时RDD分区数 = 指定numSlices参数值
+			2、如果再创建RDD的时候没有自己指定numSlices参数值,此时RDD分区数 = defaultParallelism
+				1、如果在创建sparkcontext的时候再sparkconf中有指定spark.default.parallelism参数值, defaultParallelism = 指定spark.default.parallelism参数值
+				2、如果在创建sparkcontext的时候再sparkconf中没有指定spark.default.parallelism参数值
+					1、master=local, defaultParallelism=1
+					2、master=local[N], defaultParallelism=N
+					3、master=local[*], defaultParallelism=机器逻辑的cpu核数
+					4、master=spark://...., defaultParallelism = max(所有executor总核数,2)
+		2、通过读取文件创建RDD: sc.textFile(path[,minPartitions=defaultMinPartitions])
+			1、如果自己有指定minPartitions,RDD分区数>=自己有指定minPartitions值
+			2、如果自己没有指定minPartitions,RDD分区数>=defaultMinPartitions
+				defaultMinPartitions = min(defaultParallelism,2)
+			读取文件创建的RDD分区数最终由文件的切片数决定
+		3、通过其他RDD衍生出新RDD的分区数 = 依赖的RDD中第一个RDD的分区数
+	3、RDD的算子
+		spark算子分为两种
+			Transformation转换算子: 会生成新的RDD,不会触发任务的计算。
+				map(func: RDD元素类型=>B): 一对一映射[原RDD中一个元素计算得到新RDD一个元素]
+					map的函数是针对每个元素操作,元素有多少个,函数就调用多少次
+					map生成新RDD元素个数 = 原RDD元素个数
+					map的使用场景: 用于数据类型/值的转换[一对一转换]
+					map类似sql的select
+				flatMap(func: RDD元素类型=>集合) = map + flatten : 转换+压平
+					flatMap的函数是针对每个元素操作,元素有多少个,函数就调用多少次
+					flatMap生成新RDD元素个数一般 >= 原RDD元素个数
+					flatMap的使用场景： 一对多
+				filter(func: RDD元素类型=>Boolean): 按照条件过滤
+					filter的函数是针对每个元素操作,元素有多少个,函数就调用多少次
+					filter是保留函数返回值为true的数据
+				mapPartitions(func: Iterator[RDD元素类型]=>Iterator[B]): 一对一映射[原RDD一个分区计算得到新RDD一个分区]
+					mapPartitions的函数是针对每个分区操作,分区有多少个,函数就调用多少次
+					mapPartitions的使用场景: 一般用于从Mysql/hbase/redis等查询数据,可以减少连接创建与销毁的次数
+				map与mapPartitions的区别
+					1、函数针对的对象不一样
+						map的函数是针对每个元素操作
+						mapPartitions的函数是针对每个分区操作
+					2、函数的返回值不一样
+						map的函数是针对每个元素操作,要求返回一个新的元素,map生成的新RDD元素个数 = 原RDD元素个数
+						mapPartitions的函数是针对分区操作,要求返回新分区的迭代器,mapPartitions生成新RDD元素个数不一定=原RDD元素个数
+					3、元素内存回收的时机不一样
+						map对元素操作完成之后就可以垃圾回收了
+						mapPartitions必须要等到分区数据迭代器里面数据全部处理完成之后才会统一垃圾回收,如果分区数据比较大可能出现内存溢出,此时可以用map代替。
+				mapPartitionsWithIndex(func: (Int,Iterator[RDD元素类型])=>Iterator[B]): 一对一映射[原RDD一个分区计算得到新RDD一个分区]
+					mapPartitionsWithIndex与mapPartitions的区别:
+						mapPartitionsWithIndex的函数相比mapPartitions函数多了一个分区号。
+				groupBy(func: RDD元素类型=>K): 按照指定字段对元素分组
+					groupBy的函数是针对每个元素操作,元素有多少个,函数就调用多少次
+					groupBy是根据函数的返回值对元素进行分组
+					groupBy生成新RDD元素类型是KV键值对,K就是函数的返回值,V就是K对应原RDD中所有元素的集合
+					groupBy会产生shuffle
+				distinct: 去重
+					distinct会产生shuffle操作
+				coalesce(分区数[,shuffle=false]): 合并分区
+					coalesce默认只能减少分区数,此时没有shuffle操作
+					如果想要增大分区数,需要将shuffle设置为true,此时会产生shuffle操作
+				repartition(分区数): 重分区
+					repartition既可以增大分区数也可以减少分区数,但是都会产生shuffle操作
+				coalesce与repartition的使用场景
+					coalesce一般用于减少分区数,一般搭配filter使用。
+					repartition一般用于增大分区数,当数据量膨胀的时候需要将分区数增大,加速数据处理速度
+				sortBy(func: RDD元素类型=>K[,ascding=true]): 按照指定字段排序
+					sortBy的函数是针对每个元素操作,元素有多少个,函数就调用多少次
+					sortBy是根据函数的返回值对元素排序,默认升序,如果想要降序需要将ascding设置为false
+					sortBy会产生shuffle操作
+				intersection: 交集
+					intersection会产生shuffle操作,会产生两个shuffle操作
+				union: 并集
+					union不会产生shuffle操作
+					union生成的新RDD分区数 = 两个父RDD分区数之和
+				subtract: 差集
+					subtract会产生shuffle操作,会产生两个shuffle操作
+				zip: 拉链
+					两个RDD要想拉链必须元素个数与分区数一致
+				partitionBy(partitioner): 按照指定分区器重分区
+				自定义分区器
+					1、定义class继承Partitioner
+					2、重写抽象方法
+					3、使用: 在shuffle算子中一般都可以传入partitioner对象
+				groupByKey: 根据key分组
+					groupByKey生成的RDD里面的元素是KV键值对,K是分组的key,V是K对应原RDD中所有元素的value值的集合
+				reduceByKey(func: (Value值类型,Value值类型)=>Value值类型): 按照key分组,对每个组所有value值聚合
+					reduceByKey函数第一个参数代表该组上一次聚合结果,如果是第一次聚合初始值 = 该组第一个value值
+					reduceByKey函数第二个参数代表该组当前待聚合的value值
+				groupByKey与reduceByKey的区别
+					reduceByKey有combiner预聚合操作,工作中推荐使用这种高性能shuffle算子
+					groupByKey没有预聚合
+				aggregateByKey(默认值)(combiner:(默认值类型,Value值类型)=>默认值类型, reducer:(默认值类型,默认值类型)=>默认值类型 ):  按照key分组,对每个组所有value值聚合
+					aggregateByKey第一个函数是combiner聚合逻辑
+					aggregateByKey第二个函数是reducer聚合逻辑
+					aggregateByKey第一个函数在针对每个组第一次计算的时候,第一个参数的初始值 = 默认值
+				sortByKey: 根据key排序
+				mapValues(func: Value值类型=>B): 一对一转换[原RDD一个元素的value值计算得到新RDD一个元素新Value值]
+					mapValues里面的函数是针对每个元素的value值操作
+				join: 相当于sql的inner join, 结果集 = 能够join的数据
+					两个RDD要想join必须元素都是KV键值对,两个RDD元素K的类型必须一样
+					两个join的条件就是key相同就能join
+					join生成的新RDD元素类似(join的元素key,( key对应左RDD的value值,key对应右RDD的value值 ))
+				leftOuterJoin：相当于sql的left join, 结果集 = 能够join的数据 + 左RDD不能Join的数据
+					leftOuterJOin生成的新RDD元素类似(join的元素key,( key对应左RDD的value值,Option[key对应右RDD的value值] ))
+				RightOuterJOin：相当于sql的right join, 结果集 = 能够join的数据 + 右RDD不能Join的数据
+					生成的新RDD元素类似(join的元素key,( Option[key对应左RDD的value值],key对应右RDD的value值 ))
+				fullOuterJoin：相当于sql的full join, 结果集 = 能够join的数据 + 右RDD不能Join的数据 + 左RDD不能Join的数据
+					生成的新RDD元素类似(join的元素key,( Option[key对应左RDD的value值],Option[key对应右RDD的value值] ))
+				cogroup: 相当于先对两个RDD执行groupByKey之后进行fullOuterJoin
+					cogroup生成的RDD元素类型(元素的key,(左RDDkey对应的所有value值集合,右RDD所有value值集合))
+			Action行动算子: 不会生成RDD,会触发任务的计算。
+				collect: 收集RDD每个分区的数据以数组封装之后发给Driver
+					如果rdd数据量比较大,Driver内存默认是1G,所以可能出现内存溢出。
+					工作中一般需要设置Driver的内存为5-10G
+					可以通过bin/spark-submit --driver-memory 5G 设置
+				count: 统计RDD元素个数
+				first=take(1): 获取RDD第一个元素
+				take: 获取RDD前N个元素
+					first与take会首先启动一个job从RDD 0号分区获取前N个元素,如果0号分区数据不够会再次启动一个job从其他分区获取数据。
+				takeOrdered: 获取排序之后的前N个元素
+				countByKey: 统计每个key的个数
+				saveAsTextFile: 保存数据到文本
+				foreach(func: RDD元素类型=>Unit):Unit : 对每个元素遍历
+					foreach里面的函数是针对每个元素操作,元素有多少个,函数就执行多少次
+				foreachPartition(func: Iterator[RDD元素类型]=>Unit):Unit: 对每个分区遍历
+					foreachPartition里面的函数是针对每个分区操作,分区有多少个,函数就执行多少次
+					foreachPartition一般用于将数据保存到mysql/hbase/redis等存储介质中,可以减少链接的创建与销毁的次数,能够提高效率。
+	4、序列化
+		原因: spark算子函数体中的代码是在task执行的,spark算子函数体外面的代码是在Driver执行的,如果spark函数体中使用了函数体外部的对象,此时spark会将该对象序列化之后传递给task使用,所以要求该对象必须能够序列化。
+		spark序列化方式:java序列化[默认值]、kryo序列化
+		工作中推荐使用Kryo序列化。
+		设置spark默认的序列化方式:
+			在sparkconf中配置即可: new SparkCOnf().set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+	5、依赖关系
+		查看血缘: rdd.toDebugString
+		查看依赖关系: rdd.dependencys
+			RDD的依赖关系分为
+				宽依赖: 有shuffle的称之为宽依赖
+				窄依赖: 没有shuffle的称之为窄依赖
+			Application: 应用[一个sparkcontext为一个Application]
+				job: 任务[一般一个action算子产生一个Job]
+					stage：阶段[一个job的stage个数 = shuffle个数+1]
+						task: 子任务[一个stage中task个数 = 最后一个RDD分区数]
+			stage的切分: 根据job中最后一个RDD的依赖关系从后往前依次查询,一直查询到job第一个RDD为止,在查询过程中遇到宽依赖则切分stage.
+			job中stage的执行是从前往后执行,job前面的stage先执行,后面的stage后执行。
+	6、持久化
+		场景
+			1、一个RDD在多个job中重复使用
+				好处: 一个RDD在多个job中重复使用的时候,spark默认是每个job执行的时候该RDD的之前的数据处理会重复执行,影响效率.此时可以将该RDD数据缓存,缓存之后后续Job执行的时候可以直接拿取数据使用,不用重复计算了。
+			2、一个job的依赖链条太长
+				好处: 链条太长,如果中途数据丢失,需要重新计算浪费时间,可以将某个RDD数据缓存,后续数据丢失之后不用重头计算直接拿取缓存的数据计算即可恢复丢失数据。
+		RDD的持久化分为
+			缓存
+				数据保存位置: task所在主机内存/本地磁盘中
+				数据保存时机: 在缓存所在第一个Job执行过程中进行数据保存
+				使用: rdd.cache()/rdd.persist()/rdd.persist(StorageLevel.XXXX)
+					cache与persist的区别
+						cache是只将数据保存在内存中
+						persist是可以指定将数据保存在内存/磁盘中
+					常用的存储级别: 
+						StorageLevel.MEMORY_ONLY：只将数据保存在内存中,一般用于小数据量场景
+						StorageLevel.MEMORY_AND_DISK：只将数据保存在内存+磁盘中,一般用于大数据量场景
+			checkpoint
+				原因: 缓存是将数据保存在主机磁盘/内存中,如果服务器宕机数据丢失,需要重新根据依赖关系计算得到数据,需要花费大量时间,所以需要将数据保存在可靠的存储介质HDFS中,避免后续数据丢失重新计算。
+				数据保存位置: HDFS
+				数据保存时机: 在checkpoint rdd所在第一个job执行完成之后,会单独触发一个job计算得到rdd数据之后保存。
+				使用
+					1、设置保存数据的目录: sc.setCheckpointDir(path)
+					2、保存数据: rdd.checkpoint
+				checkpoint会单独触发一个job执行得到数据之后保存,所以导致数据重复计算,此时可以搭配缓存使用: rdd.cache() + rdd.checkpoint
+			缓存与checkpoint的区别
+				1、数据保存位置不一样
+					缓存是将数据保存在task所在主机磁盘/内存中
+					checkpoint是将数据保存到HDFS
+				2、数据保存时机不一样
+					缓存是rdd所在第一个Job执行过程中进行数据保存
+					checkpoint是rdd所在第一个job执行完成之后保存
+				3、依赖关系是否保留不一样
+					缓存是将数据保存在task所在主机磁盘/内存中,所以服务器宕机数据丢失,需要根据依赖关系重新计算得到数据,所以rdd的依赖不能切除。
+					checkpoint是将数据保存到HDFS,数据不会丢失,所以rdd的依赖后续就用不到了,会切除。
+	7、分区器
+		spark自带的分区器有两种
+			HashPartitioner
+				分区规则: key.hashCode % 分区数 <0 ? (key.hashCode % 分区数)+分区数 : key.hashCode % 分区数
+			RangePartitioner
+				分区规则:
+					1、通过抽样确定 N-1 个key
+					2、通过 N-1 个key确定N个分区的边界
+					3、后续将数据的key与分区的边界对比,如果处于分区边界内,则数据放入该分区中。
+3、累加器
+	1、使用场景: 用于聚合场景并且聚合结果不能太大
+	2、原理: 先在每个task中累加,然后将task的累加结果发给Driver汇总
+	3、使用: 工作中一般使用集合累积器
+		1、获取累加器:val acc = sc.collectionAccumulator[累加元素类型](名称)
+		2、在算子中累加元素: acc.add(元素)
+		3、获取Driver汇总结果: acc.value
+	4、可以一定程度上减少shuffle操作
+4、广播变量
+	1、使用场景
+		1、task中使用Driver数据,并且该Driver数据有一定大小
+			问题:spark算子函数体中的代码是在task执行的,函数体外面的代码是在Driver执行的,所有如果在函数体中,使用到函数体的外面的数据,此时spark会将该数据给每个task都发送一份,所以占用的内存空间大小 = task个数 * 数据大小。
+			好处:此时可以将该数据广播给Executor,此时占用的内存大小 = executor个数 * 数据大小
+		2、大表 join 小表
+			问题: 会产生shuffle操作,性能低下
+			好处: 此时可以将小表数据收集到Driver端之后广播给Executor,先写mapJoin,避免shuffle操作
+	2、使用
+		1、广播数据: val acc = sc.broadcast(数据)
+		2、在task中[算子函数体中]使用广播到executor的数据: acc.value
+				

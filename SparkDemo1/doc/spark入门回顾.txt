@@ -1,0 +1,58 @@
+1、Spark概述
+	1、什么是Spark
+		Spark是基于内存的分析计算引擎
+	2、spark的使用场景
+		离线、实时、机器学习、图计算
+	3、Spark与MR的区别
+		1、MR是基于磁盘进行数据传递,Spark是基于内存进行数据传递
+		2、MR的task是进程级别,spark的task是线程级别,进程的创建与销毁的代价大于线程
+2、spark运行模式
+	1、local模式: 单机安装,解压即可用
+		1、任务提交: bin/spark-submit --master loca/local[*]/local[N] --class xx.xx.x.x xx.jar 参数 ...
+			master=local: 使用单个线程模拟执行,同一时间只能执行一个task.
+			master=local[*]: 使用cpu个数个线程模拟执行,同一时间只能执行cpu个数个task.
+			master=local[N]: 使用N个线程模拟执行,同一时间只能执行N个task.
+	2、集群模式
+		1、集群角色
+			1、Master与Worker
+				Master: 负责资源管理与分配
+				Worker: 资源节点与任务执行节点
+				Master与Worker是随着集群的启动而启动,随着集群的停止而消失。
+				Master与Worker只有standalone模式才有
+			2、Driver与executor
+				Driver的职责:
+					1、负责将代码转成job
+					2、负责将task提交到executor中执行
+					3、负责监控task的执行情况
+					4、负责程序运行过程中web ui界面展示
+				Executor: 任务执行进程
+					spark执行的是task,task是线程,是启动在executor中的线程
+				Driver与executor是随着任务的提交而启动,随着任务的完成而消失
+		2、standalone模式: 使用spark自带的资源调度[Master、Worker]
+			任务提交: bin/spark-submit --master spark://master主机名:7077,... --class 全类名 jar包所在位置 参数值 ...
+			standalone的client与cluster部署模式的区别
+				client模式: Driver在SparkSubmit进程中,此时该进程不能关闭,关闭之后Driver消失无法进行任务调度,程序会终止。
+				cluster模式: Driver在任意一个Worker中,此时SparkSubmit关闭不影响程序执行
+		3、yarn模式: 使用yarn作为资源调度器
+			任务提交: bin/spark-submit --master yarn --class 全类名 jar包所在位置 参数值 ...
+			yarn的client与cluster部署模式的区别
+				client模式: Driver在SparkSubmit进程中,此时该进程不能关闭,关闭之后Driver消失无法进行任务调度,程序会终止。
+				cluster模式: Driver在ApplicationMaster进程中,此时SparkSubmit关闭不影响程序执行
+		4、端口号总结
+			4040: 程序运行过程中webui界面端口
+			7077: master通信端口
+			8080: standalone集群界面端口
+			18080: spark历史服务器界面端口
+		5、spark-submit常用参数
+			--master 指定任务提交到哪个资源调度器中
+			--executor-memory 指定每个executor的内存大小
+			--executor-cores 指定每个executor的cpu核数
+			--total-executor-cores 指定所有executor的cpu总核数[仅限于standalone模式使用]
+			--num-executors 指定任务需要的executor个数[仅限于yarn模式使用]
+			--queue 指定任务提交到哪个资源队列中[仅限于yarn模式使用]
+			--deploy-mode 指定任务的部署模式[client/cluster]
+			--driver-memory 指定driver的内存大小
+			--class 指定待运行的带有main方法object的全类名
+	
+		
+	

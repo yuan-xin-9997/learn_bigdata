@@ -20,6 +20,11 @@
         <artifactId>spark-core_2.12</artifactId>
         <version>3.0.0</version>
     </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.13.2</version>
+        </dependency>
     </dependencies>
 
     <build>

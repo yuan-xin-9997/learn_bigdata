@@ -1,5 +1,6 @@
 package com.atguigu.day01
 
+import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 
 import java.text.SimpleDateFormat
@@ -40,7 +41,7 @@ object SessionDemo1Local {
     //    ""1003,2020-09-10 13:10:00,home.html",
     //    "1003,2020-09-10 13:15:00,search.html",
     // )
-    val rdd1 = sc.textFile("datas/session.txt")
+    val rdd1: RDD[String] = sc.textFile("datas/session.txt")
     rdd1.collect()
     rdd1.foreach(println)
 
@@ -60,7 +61,7 @@ object SessionDemo1Local {
     //    UserAnalysis(1003,2020-09-10 13:10:00,home.html,sessionid,uuid,1)
     //    UserAnalysis(1003,2020-09-10 13:15:00,search.html,sessionid,uuid,1)
     // )
-    val rdd2 = rdd1.map(
+    val rdd2: RDD[UserAnalysis] = rdd1.map(
       line => {
         val arr = line.split(",")
         val userid = arr.head
@@ -98,14 +99,14 @@ object SessionDemo1Local {
     //    ),
     //    ...
     // )
-    val rdd3 = rdd2.groupBy(
+    val rdd3: RDD[(String, Iterable[UserAnalysis])] = rdd2.groupBy(
       us => us.userId
     )
     rdd3.collect()
     rdd3.foreach(println)
 
     // 5. 针对每个用户，按照时间排序，滑窗，计算是否属于同一个session
-    val rdd4 = rdd3.flatMap(
+    val rdd4: RDD[UserAnalysis] = rdd3.flatMap(
       // x = 1001 -> Iterable(
       //        UserAnalysis(1001,2020-09-10 10:21:21,home.html,sessionid,uuid,1)
       //        UserAnalysis(1001,2020-09-10 10:28:10,good_list.html,sessionid,uuid,1)

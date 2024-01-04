@@ -10,7 +10,7 @@ object $16_WordCount {
   def main(args: Array[String]): Unit = {
 
     // 1. 读取数据
-    val list = Source.fromFile("datas/wc.txt").getLines().toList
+    val list: List[String] = Source.fromFile("datas/wc.txt").getLines().toList
     """
       |List("hello java spark hadoop",
             |"hadoop flume kafka scala",
@@ -22,7 +22,7 @@ object $16_WordCount {
 
     // 2. 切割 + 炸开
     // List(hello, java, spark, hadoop...)
-    val list2 = list.flatMap(line => line.split(" "))
+    val list2: List[String] = list.flatMap(line => line.split(" "))
     println(list2)
 
     // 3. 按照单词分组
@@ -33,7 +33,7 @@ object $16_WordCount {
       |     hadoop->List(hadoop, hadoop, ...)
       |)
       |""".stripMargin
-    val list3 = list2.groupBy(x => x)
+    val list3: Map[String, List[String]] = list2.groupBy(x => x)
     println(list3)
 
     // 4. 统计每个组中单词的个数
@@ -41,7 +41,7 @@ object $16_WordCount {
     //    "hello"->4,
     //    "java"->3,
     // )
-    val list4 = list3.map(x => {
+    val list4: Map[String, Int] = list3.map(x => {
       (x._1, x._2.size)
     })
     println(list4)
