@@ -46,7 +46,8 @@ object $01_RDDCreate {
 //    System.setProperty("user.name", "atguigu")
 
 //    System.setProperty("HADOOP_USER_NAME", "atguigu");
-    val rdd2 = sc.textFile("hdfs://hadoop102:8020/user/hive/warehouse/user_session")
+    // val rdd2 = sc.textFile("hdfs://hadoop102:8020/user/hive/warehouse/user_session")
+    val rdd2 = sc.textFile("hdfs://hadoop102:9820/user/hive/warehouse/user_session")
     println(rdd2.collect())
     println(rdd2.collect().toList)
   }

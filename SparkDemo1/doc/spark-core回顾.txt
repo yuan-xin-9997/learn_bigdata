@@ -19,7 +19,7 @@
 		计算的优先位置[可选]: spark为了提高计算效率,会尽量将计算放入数据所在的位置,避免通过网络拉取数据,影响效率
 2、RDD的编程
 	1、RDD的创建
-		1、通过本地集合创建: sc.makeRDD(集合) / sc.sc.paralleize(集合)(集合)
+		1、通过本地集合创建: sc.makeRDD(集合) / sc.sc.parallelize(集合)(集合)
 		2、通过读取文件创建: sc.textFile(path)
 		3、通过其他RDD衍生: val rdd = rdd1.map/filter/flatMap...
 	2、RDD的分区数

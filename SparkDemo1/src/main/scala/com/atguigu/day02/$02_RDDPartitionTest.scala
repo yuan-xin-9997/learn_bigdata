@@ -1,7 +1,7 @@
 package com.atguigu.day02
 import org.apache.spark.{SparkConf, SparkContext}
-
-object $02_RDDPartition {
+import org.junit.Test
+class $02_RDDPartitionTest {
   val conf = new SparkConf()
     .setMaster("local[*]").setAppName("test")
     .set("spark.testing.memory", "2147480000")
@@ -16,11 +16,6 @@ object $02_RDDPartition {
    *
    * @param args
    */
-  def main(args: Array[String]): Unit = {
-    createRDDByCollection()
-    createRDDByFile()
-    createRDDByRDD()
-  }
 
   /**
    * 1. 通过本地集合创建，其RDD分区数的数量：
@@ -33,16 +28,17 @@ object $02_RDDPartition {
    *              master=local[*]，defaultParallelism=CPU逻辑核数
    *              master=spark://...(集群模式)  此时defaultParallelism=math.max(所有executor的总核数, 2)
    */
+   @Test
   def createRDDByCollection(): Unit = {
     println(".......")
 
-    val list = List(1, 4, 3, 6, 8)
+    val list = List(1, 4, 3, 6)
     val rdd = sc.makeRDD(list)
     println(rdd.collect())
     println(rdd.collect().toList)
 
 //    val rdd2 = sc.parallelize(list, 8)
-    val rdd2 = sc.parallelize(list, 3)
+    val rdd2 = sc.parallelize(list)
     println(rdd2.collect().toList)
 
     // 查看RDD的分区数，nullSlices可以手动设置分区数
@@ -56,17 +52,9 @@ object $02_RDDPartition {
    * 2. 通过读取文件创建，其RDD分区数的数量
    *    >= minPartitions
    *    defaultMinPartitions: Int = math.min(defaultParallelism, 2)
-   *    读取文件创建的RDD分区数最终由文件切片决定（和MR的切片过程一样）
-           * // 具体的分区个数需要经过公式计算
-           * // 首先获取文件的总长度  totalSize
-           * // 计算平均长度  goalSize = totalSize / numSplits
-           * // 获取块大小 128M
-           * // 计算切分大小  splitSize = Math.max(minSize, Math.min(goalSize, blockSize));
-           * // 最后使用splitSize  按照1.1倍原则切分整个文件   得到几个分区就是几个分区
-           *
-           * // 实际开发中   只需要看文件总大小 / 填写的分区数  和块大小比较  谁小拿谁进行切分
-   *
+   *    读取文件创建的RDD分区数最终由文件切片决定
    */
+    @Test
   def createRDDByFile(): Unit = {
     println("------------------")
     // val rdd = sc.textFile("datas/wc.txt")
@@ -88,17 +76,14 @@ object $02_RDDPartition {
   }
 
   /**
-   * 3. 通过其他的RDD衍生RDD的分区数量=其依赖的第一个RDD的分区数
-   *
+   * 3. 通过其他的RDD衍生
    */
   def createRDDByRDD(): Unit = {
     println("-------------------")
-    val rdd = sc.textFile("datas/wc.txt", 4)
+    val rdd = sc.textFile("datas/wc.txt")
 
     val rdd2 = rdd.flatMap(x => x.split(" "))
     println(rdd2.collect().toList)
-
-    println(rdd2.getNumPartitions)
   }
 
 }
