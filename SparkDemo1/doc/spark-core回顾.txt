@@ -65,7 +65,8 @@
 						mapPartitions的函数是针对分区操作,要求返回新分区的迭代器,mapPartitions生成新RDD元素个数不一定=原RDD元素个数
 					3、元素内存回收的时机不一样
 						map对元素操作完成之后就可以垃圾回收了
-						mapPartitions必须要等到分区数据迭代器里面数据全部处理完成之后才会统一垃圾回收,如果分区数据比较大可能出现内存溢出,此时可以用map代替。
+						mapPartitions必须要等到分区数据迭代器里面数据全部处理完成之后才会统一垃圾回收,如果分区数据比较大可能出现内存溢出,
+						            此时可以用map代替。
 				mapPartitionsWithIndex(func: (Int,Iterator[RDD元素类型])=>Iterator[B]): 一对一映射[原RDD一个分区计算得到新RDD一个分区]
 					mapPartitionsWithIndex与mapPartitions的区别:
 						mapPartitionsWithIndex的函数相比mapPartitions函数多了一个分区号。
@@ -81,12 +82,13 @@
 					如果想要增大分区数,需要将shuffle设置为true,此时会产生shuffle操作
 				repartition(分区数): 重分区
 					repartition既可以增大分区数也可以减少分区数,但是都会产生shuffle操作
+					底层就是调用coalesce(numPartitions, shuffle = true)
 				coalesce与repartition的使用场景
 					coalesce一般用于减少分区数,一般搭配filter使用。
 					repartition一般用于增大分区数,当数据量膨胀的时候需要将分区数增大,加速数据处理速度
-				sortBy(func: RDD元素类型=>K[,ascding=true]): 按照指定字段排序
+				sortBy(func: RDD元素类型=>K[,ascending=true]): 按照指定字段排序
 					sortBy的函数是针对每个元素操作,元素有多少个,函数就调用多少次
-					sortBy是根据函数的返回值对元素排序,默认升序,如果想要降序需要将ascding设置为false
+					sortBy是根据函数的返回值对元素排序,默认升序,如果想要降序需要将ascending设置为false
 					sortBy会产生shuffle操作
 				intersection: 交集
 					intersection会产生shuffle操作,会产生两个shuffle操作

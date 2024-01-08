@@ -329,7 +329,7 @@ class $01_Transformation{
    * 双Value类型才能使用的算子
    * intersection：取两个RDD的交集
    *
-   * 会产生shuffle，因为元素需要放到一起才能比较是否有没有重复.
+   * 会产生2次shuffle，因为元素需要放到一起才能比较是否有没有重复.
    *
    * 会有3个stage，rdd1到rdd3、rdd2到rdd3都会有shuffle
    */
@@ -352,7 +352,7 @@ class $01_Transformation{
   /**
    * 双Value类型才能使用的算子
    * subtract:差集
-   * 和intersection一样会产生shuffle，使用HashPartitioner
+   * 和intersection一样会产生2次shuffle，使用HashPartitioner
    */
   @Test
   def subtract(): Unit = {
@@ -412,7 +412,7 @@ class $01_Transformation{
   /**
    * Key-Value类型才能使用的算子
    * partitionBy(partitioner: Partitioner): RDD[(K, V)]  按照K重新分区
-   *
+   * 会有shuffle操作
    */
   @Test
   def partitionBy(): Unit = {
@@ -434,7 +434,7 @@ class $01_Transformation{
 
   /**
    * Key-Value类型使用算子
-   * 自定义分区器
+   * 自定义分区器 partitionBy
    *
    * todo：所有有shuffle过程的算子，都可以传自定义分区器，也可以传分区数
    */
@@ -463,7 +463,7 @@ class $01_Transformation{
    * groupByKey：按照K重新分组
    *      生成的新RDD的元素类型是KV键值对
    *      K是分组的Key
-   *      V是Key在原RDD中对应的所有的value值，todo 注意不是元素
+   *      V是Key在原RDD中对应的所有的value值，todo 注意不是元素，要与groupBy区别开来
    * 注意和单value类型的算子groupBy的区别，他们都会有shuffle计算
    */
   @Test
@@ -516,7 +516,7 @@ class $01_Transformation{
    *     过程：缓冲区，按Key分组，预聚合，Combiner(Reduce)，落盘，reduce拉数据，分组，reduce计算
    *
    * reduceByKey 与 groupByKey的区别：
-   *      reduceByKey有预聚合操作，性能更高，工作中推荐使用这种高性能的shuffle算子
+   *      reduceByKey有预聚合操作（Combiner，就是类似在Map阶段做Reduce），性能更高，工作中推荐使用这种高性能的shuffle算子
    *      groupByKey没有预聚合操作
    */
   @Test
