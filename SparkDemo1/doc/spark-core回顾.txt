@@ -121,26 +121,28 @@
 					mapValues里面的函数是针对每个元素的value值操作
 				join: 相当于sql的inner join, 结果集 = 能够join的数据
 					两个RDD要想join必须元素都是KV键值对,两个RDD元素K的类型必须一样
-					两个join的条件就是key相同就能join
-					join生成的新RDD元素类似(join的元素key,( key对应左RDD的value值,key对应右RDD的value值 ))
+					两个RDD能够join的条件就是key相同就能join
+					join生成的新RDD元素类型(join的元素key,( key对应左RDD的value值,key对应右RDD的value值 ))
 				leftOuterJoin：相当于sql的left join, 结果集 = 能够join的数据 + 左RDD不能Join的数据
-					leftOuterJOin生成的新RDD元素类似(join的元素key,( key对应左RDD的value值,Option[key对应右RDD的value值] ))
+					leftOuterJoin生成的新RDD元素类型(join的元素key,( key对应左RDD的value值,Option[key对应右RDD的value值] ))
 				RightOuterJOin：相当于sql的right join, 结果集 = 能够join的数据 + 右RDD不能Join的数据
-					生成的新RDD元素类似(join的元素key,( Option[key对应左RDD的value值],key对应右RDD的value值 ))
+					生成的新RDD元素类型(join的元素key,( Option[key对应左RDD的value值],key对应右RDD的value值 ))
 				fullOuterJoin：相当于sql的full join, 结果集 = 能够join的数据 + 右RDD不能Join的数据 + 左RDD不能Join的数据
-					生成的新RDD元素类似(join的元素key,( Option[key对应左RDD的value值],Option[key对应右RDD的value值] ))
+					生成的新RDD元素类型(join的元素key,( Option[key对应左RDD的value值],Option[key对应右RDD的value值] ))
 				cogroup: 相当于先对两个RDD执行groupByKey之后进行fullOuterJoin
 					cogroup生成的RDD元素类型(元素的key,(左RDDkey对应的所有value值集合,右RDD所有value值集合))
 			Action行动算子: 不会生成RDD,会触发任务的计算。
 				collect: 收集RDD每个分区的数据以数组封装之后发给Driver
 					如果rdd数据量比较大,Driver内存默认是1G,所以可能出现内存溢出。
 					工作中一般需要设置Driver的内存为5-10G
-					可以通过bin/spark-submit --driver-memory 5G 设置
+					可以通过bin/spark-submit --driver-memory 10G 设置
 				count: 统计RDD元素个数
 				first=take(1): 获取RDD第一个元素
 				take: 获取RDD前N个元素
-					first与take会首先启动一个job从RDD 0号分区获取前N个元素,如果0号分区数据不够会再次启动一个job从其他分区获取数据。
+					first与take会首先启动一个job从RDD 0号分区获取前N个元素，如果0号分区数据不够会再次启动一个job从其他分区获取数据。
 				takeOrdered: 获取排序之后的前N个元素
+				    注意 没有shuffle操作，只启动1个job
+                    可以在每个分区里面先排序取前num个元素，再聚集在一起排序取前num个元素，不存在shuffle过程
 				countByKey: 统计每个key的个数
 				saveAsTextFile: 保存数据到文本
 				foreach(func: RDD元素类型=>Unit):Unit : 对每个元素遍历
@@ -149,31 +151,36 @@
 					foreachPartition里面的函数是针对每个分区操作,分区有多少个,函数就执行多少次
 					foreachPartition一般用于将数据保存到mysql/hbase/redis等存储介质中,可以减少链接的创建与销毁的次数,能够提高效率。
 	4、序列化
-		原因: spark算子函数体中的代码是在task执行的,spark算子函数体外面的代码是在Driver执行的,如果spark函数体中使用了函数体外部的对象,此时spark会将该对象序列化之后传递给task使用,所以要求该对象必须能够序列化。
+		原因: spark算子函数体中的代码是在task执行的,spark算子函数体外面的代码是在Driver执行的,
+		     如果spark函数体中使用了函数体外部的对象（闭包函数）,此时spark会将该对象序列化之后传递给task使用,所以要求该对象必须能够序列化。
 		spark序列化方式:java序列化[默认值]、kryo序列化
 		工作中推荐使用Kryo序列化。
 		设置spark默认的序列化方式:
-			在sparkconf中配置即可: new SparkCOnf().set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+			在SparkConf中配置即可: new SparkCOnf().set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
 	5、依赖关系
-		查看血缘: rdd.toDebugString
-		查看依赖关系: rdd.dependencys
+		查看RDD的血缘/血统: rdd.toDebugString
+		查看RDD的依赖关系: rdd.dependencies
 			RDD的依赖关系分为
-				宽依赖: 有shuffle的称之为宽依赖
-				窄依赖: 没有shuffle的称之为窄依赖
-			Application: 应用[一个sparkcontext为一个Application]
+				宽依赖：有shuffle的为宽依赖  org.apache.spark.ShuffleDependency
+				窄依赖：没有shuffle的为窄依赖 org.apache.spark.NarrowDependency，分为：
+			           	org.apache.spark.OneToOneDependency 一个分区对一个分区
+                        org.apache.spark.RangeDependency union算子生成的RDD为此类依赖
+			Application: 应用[一个SparkContext为一个Application]
 				job: 任务[一般一个action算子产生一个Job]
 					stage：阶段[一个job的stage个数 = shuffle个数+1]
 						task: 子任务[一个stage中task个数 = 最后一个RDD分区数]
 			stage的切分: 根据job中最后一个RDD的依赖关系从后往前依次查询,一直查询到job第一个RDD为止,在查询过程中遇到宽依赖则切分stage.
-			job中stage的执行是从前往后执行,job前面的stage先执行,后面的stage后执行。
+			job中stage的执行是从前往后执行,前面的stage先执行,后面的stage后执行。
 	6、持久化
 		场景
 			1、一个RDD在多个job中重复使用
-				好处: 一个RDD在多个job中重复使用的时候,spark默认是每个job执行的时候该RDD的之前的数据处理会重复执行,影响效率.此时可以将该RDD数据缓存,缓存之后后续Job执行的时候可以直接拿取数据使用,不用重复计算了。
+				好处: 一个RDD在多个job中重复使用的时候,spark默认是每个job执行的时候该RDD的之前的数据处理会重复执行,
+				     影响效率.此时可以将该RDD数据缓存,缓存之后后续Job执行的时候可以直接拿取数据使用,不用重复计算了。
 			2、一个job的依赖链条太长
-				好处: 链条太长,如果中途数据丢失,需要重新计算浪费时间,可以将某个RDD数据缓存,后续数据丢失之后不用重头计算直接拿取缓存的数据计算即可恢复丢失数据。
-		RDD的持久化分为
-			缓存
+				好处: 链条太长,如果中途数据丢失,需要重新计算浪费时间,可以将某个RDD数据缓存,后续数据丢失之后不用重头计算直接拿取缓存的
+				      数据计算即可恢复丢失数据。
+		RDD的持久化分为：
+			1. 缓存cache
 				数据保存位置: task所在主机内存/本地磁盘中
 				数据保存时机: 在缓存所在第一个Job执行过程中进行数据保存
 				使用: rdd.cache()/rdd.persist()/rdd.persist(StorageLevel.XXXX)
@@ -183,7 +190,7 @@
 					常用的存储级别: 
 						StorageLevel.MEMORY_ONLY：只将数据保存在内存中,一般用于小数据量场景
 						StorageLevel.MEMORY_AND_DISK：只将数据保存在内存+磁盘中,一般用于大数据量场景
-			checkpoint
+			2. checkpoint
 				原因: 缓存是将数据保存在主机磁盘/内存中,如果服务器宕机数据丢失,需要重新根据依赖关系计算得到数据,需要花费大量时间,所以需要将数据保存在可靠的存储介质HDFS中,避免后续数据丢失重新计算。
 				数据保存位置: HDFS
 				数据保存时机: 在checkpoint rdd所在第一个job执行完成之后,会单独触发一个job计算得到rdd数据之后保存。
@@ -191,7 +198,7 @@
 					1、设置保存数据的目录: sc.setCheckpointDir(path)
 					2、保存数据: rdd.checkpoint
 				checkpoint会单独触发一个job执行得到数据之后保存,所以导致数据重复计算,此时可以搭配缓存使用: rdd.cache() + rdd.checkpoint
-			缓存与checkpoint的区别
+			其中，缓存与checkpoint的区别
 				1、数据保存位置不一样
 					缓存是将数据保存在task所在主机磁盘/内存中
 					checkpoint是将数据保存到HDFS
