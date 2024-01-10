@@ -101,6 +101,8 @@ class $01_Transformation {
    * join；相当于SQL的inner join
    *    join生成的新RDD元素类型是(K, (左RDD value值，右RDDvalue值))
    *    两个RDD key的元素类型相同才可以Join操作
+   *
+   *    左外连接有shuffle操作，且2次，共3个stage
    */
   @Test
   def join(): Unit = {
