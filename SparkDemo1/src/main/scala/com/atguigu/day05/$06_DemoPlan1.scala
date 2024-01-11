@@ -3,7 +3,7 @@ package com.atguigu.day05
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 
-object $06_Demo11 {
+object $06_DemoPlan1 {
   /**
    * 第5章 Spark Core实战
    *

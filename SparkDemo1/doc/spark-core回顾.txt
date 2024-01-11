@@ -190,15 +190,18 @@
 					常用的存储级别: 
 						StorageLevel.MEMORY_ONLY：只将数据保存在内存中,一般用于小数据量场景
 						StorageLevel.MEMORY_AND_DISK：只将数据保存在内存+磁盘中,一般用于大数据量场景
+                会自动删除数据 也可以调用rdd.unpersist
 			2. checkpoint
-				原因: 缓存是将数据保存在主机磁盘/内存中,如果服务器宕机数据丢失,需要重新根据依赖关系计算得到数据,需要花费大量时间,所以需要将数据保存在可靠的存储介质HDFS中,避免后续数据丢失重新计算。
-				数据保存位置: HDFS
+				原因: 缓存是将数据保存在主机磁盘/内存中,如果服务器宕机数据丢失,需要重新根据依赖关系计算得到数据,需要花费大量时间,所
+				     以需要将数据保存在可靠的存储介质HDFS中,避免后续数据丢失重新计算。
+				数据保存位置: (一般是)HDFS
 				数据保存时机: 在checkpoint rdd所在第一个job执行完成之后,会单独触发一个job计算得到rdd数据之后保存。
 				使用
 					1、设置保存数据的目录: sc.setCheckpointDir(path)
 					2、保存数据: rdd.checkpoint
-				checkpoint会单独触发一个job执行得到数据之后保存,所以导致数据重复计算,此时可以搭配缓存使用: rdd.cache() + rdd.checkpoint
-			其中，缓存与checkpoint的区别
+				最佳实践：checkpoint会单独触发一个job执行得到数据之后保存,所以导致数据重复计算,此时可以搭配缓存使用: rdd.cache() + rdd.checkpoint
+				删除：checkpoint数据需要手动删
+			其中，缓存cache与checkpoint的区别
 				1、数据保存位置不一样
 					缓存是将数据保存在task所在主机磁盘/内存中
 					checkpoint是将数据保存到HDFS
@@ -211,21 +214,21 @@
 	7、分区器
 		spark自带的分区器有两种
 			HashPartitioner
-				分区规则: key.hashCode % 分区数 <0 ? (key.hashCode % 分区数)+分区数 : key.hashCode % 分区数
+				分区规则: key.hashCode % 分区数 <0   ?   (key.hashCode % 分区数)+分区数   :   key.hashCode % 分区数
 			RangePartitioner
 				分区规则:
-					1、通过抽样确定 N-1 个key
+					1、通过抽样确定 N-1 个key（N为分区数）
 					2、通过 N-1 个key确定N个分区的边界
 					3、后续将数据的key与分区的边界对比,如果处于分区边界内,则数据放入该分区中。
-3、累加器
-	1、使用场景: 用于聚合场景并且聚合结果不能太大
+3、累加器（分布式只写共享变量）
+	1、使用场景: 用于聚合场景并且聚合结果不能太大（例如10G、20G）
 	2、原理: 先在每个task中累加,然后将task的累加结果发给Driver汇总
 	3、使用: 工作中一般使用集合累积器
 		1、获取累加器:val acc = sc.collectionAccumulator[累加元素类型](名称)
-		2、在算子中累加元素: acc.add(元素)
+		2、在(一般是action算子，如果是transformation算子可能导致重复累加)算子中累加元素: acc.add(元素)
 		3、获取Driver汇总结果: acc.value
-	4、可以一定程度上减少shuffle操作
-4、广播变量
+	4、好处：可以一定程度上减少shuffle操作
+4、广播变量（分布式只读共享变量）
 	1、使用场景
 		1、task中使用Driver数据,并且该Driver数据有一定大小
 			问题:spark算子函数体中的代码是在task执行的,函数体外面的代码是在Driver执行的,所有如果在函数体中,使用到函数体的外面的数据,此时spark会将该数据给每个task都发送一份,所以占用的内存空间大小 = task个数 * 数据大小。

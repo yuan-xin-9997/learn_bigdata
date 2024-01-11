@@ -127,7 +127,7 @@ class $05_BroadCast {
 
     // todo 广播小表数据
     //    收集数据到Driver端
-    //    RDD 没有数据，不能广播RDD
+    //    RDD 没有数据，不能广播RDD，所以此处需要先collect
     val cMap: Map[String, String] = mapcourseRDD.collect().toMap
     val bc = sc.broadcast(cMap)
 

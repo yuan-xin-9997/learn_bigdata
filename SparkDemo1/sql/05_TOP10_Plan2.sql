@@ -8,7 +8,7 @@
 本项目需求优化为：先按照点击数排名，靠前的就排名高；如果点击数相同，再比较下单数；下单数再相同，就比较支付数。
 todo 需求：Top10热门品类
     以下为方案二实现
-            SQL可以实现功能，但是
+            可以实现需求，且只有一次group by 一次order by
 */
 
 
@@ -159,3 +159,5 @@ from (
          ) t2 group by id
      ) t3 order by click_num desc ,order_num desc, pay_num desc
 limit 10;
+
+-- todo 上述SQL可以实现需求，且只有一次group by 一次order by
