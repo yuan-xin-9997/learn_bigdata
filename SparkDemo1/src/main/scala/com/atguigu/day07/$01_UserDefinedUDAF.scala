@@ -12,9 +12,9 @@ object $01_UserDefinedUDAF {
   import spark.implicits._
 
   /**
-   * todo 自定义UDF函数：
+   * todo 自定义UADF函数：
    *    1. 写一个函数
-   *       2、将函数注册到SparkSession中
+   *    2、将函数注册到SparkSession中
    *
    * 根据用户自定义函数类别分为以下三种：
    * ① UDF（User-Defined-Function）--> 一进一出
@@ -55,9 +55,21 @@ object $01_UserDefinedUDAF {
         |select region,avg(age) from person group by region
         |""".stripMargin).show()
 
+
     // 自定义UDAF函数
     //    弱类型定义方式  3.x过期，一般在2.x版本使用
     //    强类型定义方式，3.x版本推荐，2.x版本没有
+
+    // todo 将自定义UDAF函数注册到spark中
+    spark.udf.register("myavgl", new WeakAvgUDAF)
+    // 使用自定义函数UDAF计算平均值
+    spark.sql(
+      """
+        |select region,myavgl(age) from person group by region
+        |""".stripMargin
+    ).show()
+
+
   }
 
 }

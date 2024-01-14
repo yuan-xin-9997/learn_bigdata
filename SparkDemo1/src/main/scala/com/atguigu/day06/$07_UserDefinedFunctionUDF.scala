@@ -42,7 +42,7 @@ object $07_UserDefinedFunctionUDF {
     val str = myLpad("hhhhhhhhh",  8, "0")
     println(str)
 
-    // todo 2、将函数注册到SparkSession中
+    // todo 2、将UDF函数注册到SparkSession中
     spark.udf.register("myLpad", myLpad _)   // todo 方法 _  表示方法转函数
     spark.udf.register("myLpadfunc", myLpadfunc)   // todo myLpadfunc已经是函数，不需转换
     df.selectExpr( "myLpad(id, 8, 0) id", "name", "age" ).show( )
@@ -50,7 +50,7 @@ object $07_UserDefinedFunctionUDF {
   }
 
   /**
-   * todo 1. 写一个函数
+   * todo 1. 写一个函数，用作UDF函数
    * lpad(string str, int len, string pad)
    * Returns str, left-padded with pad to a length of len. If str is longer than len, the return value is shortened to len characters. In case of empty pad string, the return value is null.
    *
