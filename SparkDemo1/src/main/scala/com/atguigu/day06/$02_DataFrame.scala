@@ -59,6 +59,8 @@ class $02_DataFrame {
 
     // ------------------------RDD.toDF----------------------------
     val rdd = spark.sparkContext.parallelize(list)
+    println(rdd.getNumPartitions)
+    println(rdd.collect().toList)
 
     val df3 = rdd.toDF()
     df3.show

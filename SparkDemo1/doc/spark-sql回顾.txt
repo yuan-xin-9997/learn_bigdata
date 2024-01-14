@@ -5,7 +5,7 @@
 	3、SparkSql的数据抽象
 		DataFrame
 			DataFrame类似mysql的表,有列名、列类型。
-			DataFrame只关注列,不关注行的类型
+			DataFrame只关注列,不关注行的类型，因此DataFrame是弱类型
 			DataFrame其实就是DataSet[Row]
 		DataSet
 			DataSet类似mysql的表,有列名、列类型。

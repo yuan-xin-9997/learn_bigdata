@@ -55,10 +55,6 @@ class $03_DataSet {
     df1.show
     df1.printSchema
 
-    // todo DataFrame to DataSet ??
-//    val ds2 = df1.as()
-//    ds1.printSchema
-
     // ------------------------RDD.toDS----------------------------
     println("------------------------RDD.toDS----------------------------")
     val rdd = spark.sparkContext.parallelize(list)
@@ -70,13 +66,24 @@ class $03_DataSet {
 
   /**
    * 2、通过读取文件创建
-   *    todo 注意 只能读取文本文件生成DataSet
+   *    todo 注意 一般通过读取文本文件生成DataSet，可以通过json，但是会生成如下结果
+   *               +--------------------+
+   *               |               value|
+   *               +--------------------+
+   *               |{"name": "lisi1",...|
+   *               |{"name": "lisi2",...|
+   *               |{"name": "lisi3",...|
+   *               |{"name": "lisi4",...|
+   *               +--------------------+
    */
   @Test
   def createDataSetByFile(): Unit = {
 
     val ds: Dataset[String] = spark.read.textFile("datas/wc.txt")
     ds.show
+
+    val ds1: Dataset[String] = spark.read.textFile("datas/test.json")
+    ds1.show
   }
 
   /**

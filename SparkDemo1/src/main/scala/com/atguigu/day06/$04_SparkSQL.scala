@@ -14,14 +14,14 @@ class $04_SparkSQL {
   import spark.implicits._
   /**
    * SparkSQL编程方式
-   *    命令式：使用对应方法操作数据
-   *    声明式：使用sql操作数据（重点）
+   *    命令式：使用对应DataFrame和DataSet的API方法操作数据
+   *    声明式：使用（Hive）sql操作数据（重点）
    */
 
   /**
    * 命令式，常用方法
-   *    1. 列裁剪
-   *    2、过滤
+   *    1. 列裁剪 select selectExpr
+   *    2、过滤 filter(sql过滤条件)  where(sql过滤条件)
    *    3、去重
    */
   @Test
@@ -54,8 +54,8 @@ class $04_SparkSQL {
     df4.show()
 
     // todo 去重
-    //    distinct:  什么参数都不用传就是 所有字段相同 才区充分
-    //    dropDuplicates:  指定列相同去重
+    //    distinct():  什么参数都不用传就是 所有字段相同 才区充分
+    //    dropDuplicates("列名"):  指定列相同去重
     val df5 = df.distinct()   // 什么参数都不传就是 所有字段相同 才区充分
     df5.show()
     val df6: Dataset[Row] = df.dropDuplicates("name")
@@ -64,7 +64,7 @@ class $04_SparkSQL {
 
   /**
    * 声明式：使用sql操作数据（重点）
-   *    1. 将dataFrame/DataSet数据集注册成表
+   *    1. 将dataFrame/DataSet数据集注册成表 df.createOrReplaceTempView("表名")
    *    2. sql 操作数据：spark.sql("SQL语句")
    */
   @Test

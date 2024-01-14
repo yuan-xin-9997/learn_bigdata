@@ -14,7 +14,7 @@ object $06_Convert {
   import spark.implicits._
 
   /**
-   * RDD、DataFrame、DataSet相互转换
+   * todo  RDD、DataFrame、DataSet相互转换
    * @param args
    */
   def main(args: Array[String]): Unit = {
@@ -67,7 +67,7 @@ object $06_Convert {
     val ds8: Dataset[(Long, String, String)] = df7.as[(Long, String, String)]  // todo 行类型可以写元组，元组的元素类型必须与列的类型对应，或者能够自动转换
     ds8.show()
 
-    val ds9 = df7.as[AAA]  // todo 行类型可以写样例类
+    val ds9 = df7.as[AAA]  // todo 行类型可以写样例类，属性名必须与json中的key保持一致，顺序可不一致
     ds9.show()
     // ds9.map(x=>x.age)
 
@@ -82,5 +82,5 @@ object $06_Convert {
   }
 }
 
-case class AAA(age:Long, sex:String, name:String)  // todo 此处属性名必须与json中的key保持一致，顺序可不一致。属性名也可不行
-case class AAA2()  // todo 此处属性名必须与json中的key保持一致，顺序可不一致。属性名也可不行
+case class AAA(age:Long, sex:String, name:String)  // todo 此处属性名必须与json中的key保持一致，顺序可不一致。属性名也可不写
+case class AAA2()  // todo 属性名也可不写

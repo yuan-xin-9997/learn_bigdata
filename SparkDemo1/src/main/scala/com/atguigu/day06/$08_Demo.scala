@@ -33,6 +33,8 @@ object $08_Demo {
    * @param args
    */
   def main(args: Array[String]): Unit = {
+    // todo 求得每个主类的销量占比情况
+
     // 读取数据
     val datasDF = spark.read.csv("datas/双十一淘宝美妆数据.csv").toDF("update_time", "id", "title", "price", "sale_count", "comment_count", "name")
 
@@ -40,8 +42,101 @@ object $08_Demo {
     datasDF.show()
     rawTypeDS.show()
 
-    rawTypeDS.flatMap(line=>{
+    // 针对type表进行处理，得到主类和子类一一映射的新DataFrame
+    val typeDF: DataFrame = rawTypeDS.flatMap(line => {
+      // line = 护肤品 乳液类 乳液 美白乳 润肤乳 凝乳 柔肤液 亮肤乳 菁华乳 修护乳
+      val arr = line.split(" ")
+      val mainType = arr(1)
+      val subTypes = arr.tail.tail
+      subTypes.map(x=>(x, mainType))
+    }).toDF("kv", "main_type")
+    typeDF.show()
 
-    })
+    // 注册UDF函数
+    spark.udf.register("contains", contains _)
+
+    // 注册临时表
+    datasDF.createOrReplaceTempView("sales")
+    typeDF.createOrReplaceTempView("s_type")
+
+    // join，使用row_number()函数进行开窗
+    //    ROW_NUMBER()：会根据顺序计算，字段相同就按排头字段继续排
+    // |     12668|      CHAND0/自然堂活泉保湿修护精...|爽肤水|   化妆水|  1|
+    //|     12668|      CHAND0/自然堂活泉保湿修护精...|精华水|   精华类|  2|
+    // 由于一个主类会有多个关键字的销售记录与之对应，因此使用row number对title进行开窗，并按照
+    //   sale_count进行排序
+    // todo 此处有问题，因为同一个title的销售记录，会对应多个主类
+    val joinDF: DataFrame = spark.sql(
+      """
+        |select
+        | a.sale_count,
+        | a.title,
+        | b.kv,
+        | b.main_type,
+        | row_number() over(partition by title order by sale_count) rn
+        |from sales a join s_type b
+        |on contains(a.title, b.kv)
+        |""".stripMargin
+    )
+    joinDF.show()
+
+    // 将join之后的结果注册成临时表
+    joinDF.createOrReplaceTempView("t_tmp")
+
+    // 按照rn=1，并且销售量不为null进行筛选
+    val filterDF = spark.sql(
+      """
+        |select *
+        |from t_tmp
+        |where rn = 1 and sale_count is not null
+        |""".stripMargin
+    )
+    filterDF.show()
+
+    // 求每个主类的销售总量，所有主类的销售总量
+    spark.sql(
+      """
+        |select
+        | main_type,
+        | sum(sale_count) sale_count
+        |from t_tmp
+        |where rn = 1 and sale_count is not null
+        |group by main_type
+        |""".stripMargin
+    ).createOrReplaceTempView("t_tmp2")  // 注册临时表，按主类分组，求得每个主类的销售总量
+    val totalSaleCountDF: DataFrame = spark.sql(
+      """
+        |select
+        | main_type,
+        | sale_count,
+        | sum(sale_count) over() total_sale_count
+        |from t_tmp2
+        |""".stripMargin
+    )
+    totalSaleCountDF.show()
+    totalSaleCountDF.createOrReplaceTempView("t_tmp3") // 注册临时表，求主类销售占比
+
+    // 计算每个主类销售占比
+    spark.sql(
+      """
+        |select
+        | main_type,
+        | sale_count / total_sale_count   ratio
+        |from
+        |t_tmp3
+        |""".stripMargin
+    ).show()
+
+  }
+
+  /**
+   * UDF自定义函数，判断title中是否包含keyword
+   * @param title
+   * @param keyword
+   * @return
+   */
+  def contains(title:String, keyword:String): Boolean = {
+    val bool = title.contains(keyword)
+    bool
   }
 }
