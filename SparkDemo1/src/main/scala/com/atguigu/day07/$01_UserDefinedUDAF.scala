@@ -60,7 +60,7 @@ object $01_UserDefinedUDAF {
     //    弱类型定义方式  3.x过期，一般在2.x版本使用
     //    强类型定义方式，3.x版本推荐，2.x版本没有
 
-    // todo 将自定义UDAF函数注册到spark中
+    // todo (弱类型)将自定义UDAF函数注册到spark中
     spark.udf.register("myavgl", new WeakAvgUDAF)
     // 使用自定义函数UDAF计算平均值
     spark.sql(
@@ -69,7 +69,16 @@ object $01_UserDefinedUDAF {
         |""".stripMargin
     ).show()
 
-
+    // // todo (强类型)将自定义UDAF函数注册到spark中
+    println("(强类型)将自定义UDAF函数注册到spark中")
+    import org.apache.spark.sql.functions._
+    spark.udf.register("myavg2", udaf(new StrongAvgUDAF))
+    // 使用自定义函数UDAF计算平均值
+    spark.sql(
+      """
+        |select region,myavg2(age) from person group by region
+        |""".stripMargin
+    ).show()
   }
 
 }
