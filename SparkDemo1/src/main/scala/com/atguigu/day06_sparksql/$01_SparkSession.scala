@@ -1,4 +1,4 @@
-package com.atguigu.day06
+package com.atguigu.day06_sparksql
 
 import org.apache.spark.sql.SparkSession
 

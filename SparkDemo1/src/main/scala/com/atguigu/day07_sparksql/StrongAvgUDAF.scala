@@ -1,4 +1,4 @@
-package com.atguigu.day07
+package com.atguigu.day07_sparksql
 
 import org.apache.spark.sql.{Encoder, Encoders}
 import org.apache.spark.sql.expressions.Aggregator

@@ -1,4 +1,4 @@
-package com.atguigu.day06
+package com.atguigu.day06_sparksql
 
 object $07_UserDefinedFunctionUDF {
   import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructType}

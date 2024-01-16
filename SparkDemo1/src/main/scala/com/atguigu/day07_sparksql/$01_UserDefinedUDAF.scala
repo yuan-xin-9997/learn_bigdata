@@ -1,4 +1,4 @@
-package com.atguigu.day07
+package com.atguigu.day07_sparksql
 
 object $01_UserDefinedUDAF {
 
@@ -69,7 +69,7 @@ object $01_UserDefinedUDAF {
         |""".stripMargin
     ).show()
 
-    // // todo (强类型)将自定义UDAF函数注册到spark中
+    // todo (强类型)将自定义UDAF函数注册到spark中
     println("(强类型)将自定义UDAF函数注册到spark中")
     import org.apache.spark.sql.functions._
     spark.udf.register("myavg2", udaf(new StrongAvgUDAF))
