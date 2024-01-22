@@ -1,0 +1,4 @@
+{"name": "lisi1", "age": 21, "stu": {"name":"xx1", "age":11}, "acts": [1,2,3]}
+{"name": "lisi2", "age": 22, "stu": {"name":"xx2", "age":22}, "acts": [1,2,3]}
+{"name": "lisi3", "age": 23, "stu": {"name":"xx3", "age":33}, "acts": [1,2,3]}
+{"name": "lisi4", "age": 24, "stu": {"name":"xx4", "age":44}, "acts": [1,2,3]}
