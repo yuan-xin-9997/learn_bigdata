@@ -103,6 +103,10 @@
 --         "page_id": "good_detail",
 --         "source_type": "query"
 --     },
+--     "err": {
+--         "error_code": 3795,
+--         "msg": " Exception in thread \\  java.net.SocketTimeoutException\\n \\tat com.atgugu.gmall2020.mock.bean.log.AppError.main(AppError.java:xxxxxx)"
+--     }
 --     "ts": 1592105356000
 -- }
 
@@ -126,6 +130,10 @@
 --         "open_ad_ms": 5518,
 --         "open_ad_skip_ms": 0
 --     },
+--     "err": {
+--         "error_code": 3795,
+--         "msg": " Exception in thread \\  java.net.SocketTimeoutException\\n \\tat com.atgugu.gmall2020.mock.bean.log.AppError.main(AppError.java:xxxxxx)"
+--     }
 --     "ts": 1592105351000
 -- }
 
@@ -138,6 +146,12 @@ CREATE EXTERNAL TABLE ods_log_inc
     display array<struct<display_type:string, item:string, item_type:string, `order`:int, pos_id: int >>,
     page struct<during_time:int, item:string, item_type:string, last_page_id:string, page_id: string, source_type:string>,
     `start` struct<entry:string, loading_time:int, open_ad_id:int, open_ad_ms: int, open_ad_skip_ms:int>,
+    err struct<error_code:int, msg:string>,
     ts bigint
 )
+partitioned by(dt string)
+ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.JsonSerDe'
+location '/warehouse/gmall/ods/ods_log_inc/';
 
+-- 加载数据到指定分区
+-- load data inpath '/origin_data/gmall/log/topic_log/2020-06-14' overwrite into table ods_log_inc partition (dt='2020-06-14');
