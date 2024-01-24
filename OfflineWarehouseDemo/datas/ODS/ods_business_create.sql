@@ -217,6 +217,7 @@ CREATE EXTERNAL TABLE ods_sku_sale_attr_value_full
     ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
     NULL DEFINED AS ''
     LOCATION '/warehouse/gmall/ods/ods_sku_sale_attr_value_full/';
+
 -- 7.2.15 SPU表（全量表）
 DROP TABLE IF EXISTS ods_spu_info_full;
 CREATE EXTERNAL TABLE ods_spu_info_full
@@ -231,6 +232,7 @@ CREATE EXTERNAL TABLE ods_spu_info_full
     ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
     NULL DEFINED AS ''
     LOCATION '/warehouse/gmall/ods/ods_spu_info_full/';
+
 -- 7.2.16 购物车表（增量表）
 DROP TABLE IF EXISTS ods_cart_info_inc;
 CREATE EXTERNAL TABLE ods_cart_info_inc
