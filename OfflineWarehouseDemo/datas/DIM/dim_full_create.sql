@@ -447,4 +447,267 @@ select
     "9999-12-31" -- date.end_date
 from ods_user_info_inc where dt='2020-06-14' and type='bootstrap-insert';  -- type为bootstrap-start和bootstrap-complete之间的数据才是增量表当日数据
 
---- 每日：导入当天新增和修改的数据
+--- 每日加载(以2020-06-15为例)：导入当天新增和修改的数据
+---   数据来源：前一日为止最新数据是在9999-12-31分区，当日最新数据在ODS层当日分区中
+---   数据去处：当天为止最新数据放入9999-12-31分区中，失效数据放入当日-1时间分区中
+set hive.exec.dynamic.partition.mode=nonstrict; -- 若要使用动态分区，需要设置hive参数为非严格模式
+-- 第一种每日加载方案
+with old as (
+    select
+        id ,
+        login_name ,
+        nick_name ,
+        name ,
+        phone_num ,
+        email ,
+        user_level ,
+        birthday ,
+        gender ,
+        create_time ,
+        operate_time ,
+        start_date ,
+        end_date
+    from dim_user_zip where dt='9999-12-31'
+), new as (
+    select
+        id ,
+        login_name,
+        nick_name,
+        name,
+        phone_num,
+        email,
+        user_level,
+        birthday,
+        gender,
+        create_time,
+        operate_time,
+        start_date,
+        end_date
+    from(
+        select
+            data.id ,
+            data.login_name ,
+            data.nick_name ,
+            data.name ,
+            data.phone_num ,
+            data.email ,
+            data.user_level ,
+            data.birthday ,
+            data.gender ,
+            data.create_time ,
+            data.operate_time ,
+            '2020-06-15' start_date,  -- 新数据的生效时间，直接是当天
+            '9999-12-31' end_date, -- 新数据的失效时间，是9999-12-31
+            row_number() over (partition by data.id order by ts desc) rn
+        from ods_user_info_inc where dt='2020-06-15'
+    ) t1 where rn = 1
+), full_user as (
+    select
+        old.id old_id,
+        old.login_name old_login_name,
+        old.nick_name old_nick_name,
+        old.name old_name,
+        old.phone_num old_phone_num,
+        old.email old_email,
+        old.user_level old_user_level,
+        old.birthday old_birthday,
+        old.gender old_gender,
+        old.create_time old_create_time,
+        old.operate_time old_operate_time,
+        old.start_date old_start_date,
+        old.end_date old_end_date,
+        new.id new_id ,
+        new.login_name new_login_name ,
+        new.nick_name new_nick_name ,
+        new.name new_name ,
+        new.phone_num new_phone_num ,
+        new.email new_email ,
+        new.user_level new_user_level ,
+        new.birthday new_birthday ,
+        new.gender new_gender ,
+        new.create_time new_create_time ,
+        new.operate_time new_operate_time,
+        new.start_date new_start_date,
+        new.end_date new_end_date
+    from new full outer join  old on new.id = old.id
+)
+insert overwrite table dim_user_zip partition (dt)
+-- 下面筛选最新数据
+select
+    `if`(new_id is not null, new_id, old_id),
+    `if`(new_id is not null, new_login_name, old_login_name),
+    `if`(new_id is not null, new_nick_name, old_nick_name),
+    `if`(new_id is not null, new_name, old_name),
+    `if`(new_id is not null, new_phone_num, old_phone_num),
+    `if`(new_id is not null, new_email, old_email),
+    `if`(new_id is not null, new_user_level, old_user_level),
+    `if`(new_id is not null, new_birthday, old_birthday),
+    `if`(new_id is not null, new_gender, old_gender),
+    `if`(new_id is not null, new_create_time, old_create_time),
+    `if`(new_id is not null, new_operate_time, old_operate_time),
+    `if`(new_id is not null, new_start_date, old_start_date),
+    `if`(new_id is not null, new_end_date, old_end_date),
+    `if`(new_id is not null, new_end_date, old_end_date)  -- 动态分区字段
+from full_user
+where new_id is not null or ( old_id is not null and new_id is null )  -- 新数据id不为null 或者 旧数据id不为null&新数据id为null
+union
+-- 下面筛选失效数据
+select
+      old_id,
+     old_login_name,
+    old_nick_name,
+     old_name,
+    old_phone_num,
+     old_email,
+    old_user_level,
+     old_birthday,
+    old_gender,
+     old_create_time,
+     old_operate_time,
+     old_start_date,
+      cast(date_sub('2020-06-15', 1) as string),  -- 失效日期，当前日期-1天
+      cast(date_sub('2020-06-15', 1) as string) -- 动态分区字段
+from full_user where old_id is not null and new_id is not null;
+;
+
+-- 第二种每日加载方案：最新数据 unio 9999-12-31分区数据，按照用户分区，生效时间降序，每个用户排在第一位就是最新数据，排在第1位之后是失效数据
+with old as (
+    select
+        id ,
+        login_name ,
+        nick_name ,
+        name ,
+        phone_num ,
+        email ,
+        user_level ,
+        birthday ,
+        gender ,
+        create_time ,
+        operate_time ,
+        start_date ,
+        end_date
+    from dim_user_zip where dt='9999-12-31'
+), new as (
+    select
+        id ,
+        login_name,
+        nick_name,
+        name,
+        phone_num,
+        email,
+        user_level,
+        birthday,
+        gender,
+        create_time,
+        operate_time,
+        start_date,
+        end_date
+    from(
+        select
+            data.id ,
+            data.login_name ,
+            data.nick_name ,
+            data.name ,
+            data.phone_num ,
+            data.email ,
+            data.user_level ,
+            data.birthday ,
+            data.gender ,
+            data.create_time ,
+            data.operate_time ,
+            '2020-06-15' start_date,  -- 新数据的生效时间，直接是当天
+            '9999-12-31' end_date, -- 新数据的失效时间，是9999-12-31
+            row_number() over (partition by data.id order by ts desc) rn
+        from ods_user_info_inc where dt='2020-06-15'
+    ) t1 where rn = 1
+), full_user as (
+    select
+        id ,
+        login_name,
+        nick_name,
+        name,
+        phone_num,
+        email,
+        user_level,
+        birthday,
+        gender,
+        create_time,
+        operate_time,
+        start_date,
+        end_date
+    from new
+    union
+    select
+        id ,
+        login_name,
+        nick_name,
+        name,
+        phone_num,
+        email,
+        user_level,
+        birthday,
+        gender,
+        create_time,
+        operate_time,
+        start_date,
+        end_date
+    from old
+)
+insert overwrite table dim_user_zip partition (dt)
+select
+    id ,
+    login_name,
+    nick_name,
+    name,
+    phone_num,
+    email,
+    user_level,
+    birthday,
+    gender,
+    create_time,
+    operate_time,
+    start_date,
+    if(rn=1,'9999-12-31', cast(date_sub('2020-06-15', 1) as string)),
+    if(rn=1,'9999-12-31', cast(date_sub('2020-06-15', 1) as string))
+from
+(
+    select
+        id ,
+        login_name,
+        nick_name,
+        name,
+        phone_num,
+        email,
+        user_level,
+        birthday,
+        gender,
+        create_time,
+        operate_time,
+        start_date,
+        end_date,
+        row_number() over (partition by id order by start_date desc ) rn
+    from full_user
+) t1
+;
+
+-- 正则表达式
+-- desc function extended regexp;
+-- 正则表达式语法：
+-- . 代表任意字符
+-- * 代表零次或多次
+-- + 代表一次或多次
+-- ? 代表0次或一次
+-- {n} 代表n次
+-- [xyz] 代表匹配其中一个字符
+-- [a-zA-Z0-9] 代表匹配a-z或者A-Z或者0-9其中一个字符
+-- \d 代表匹配任意一个数字
+-- | 代表或者
+-- ^ 代表字符串开头
+-- $ 代表字符串的结尾
+
+-- 正则表达式匹配手机号码
+select '13767204544' regexp '^(13[0-9]|14[01456879]|15[0-35-9]|16[2567]|17[0-8]|18[0-9]|19[0-35-9])\\\d{8}$';
+select '12767204544' regexp '^(13[0-9]|14[01456879]|15[0-35-9]|16[2567]|17[0-8]|18[0-9]|19[0-35-9])\\\d{8}$';
+
+-- 正则表达式匹配邮箱格式
+select '1398651518@qq.com' regexp '^[a-zA-Z0-9_-]+@[a-zA-Z0-9_-]+(\\\.[a-zA-Z0-9_-]+)+$';
