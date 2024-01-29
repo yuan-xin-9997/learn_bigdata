@@ -1,7 +1,8 @@
 #!/bin/bash
-# ODS层->DIM层 首日数据装载脚本
-# ods_to_dim_init.sh all/表名
-# todo 首日加载 在 全量快照表/拉链表 的区别
+# ODS层->DIM层 每日数据装载脚本
+# ods_to_dim.sh all/表名 [日期]
+# 全量快照表的首日和每日数据加载SQL都相同，区别在于拉链表
+
 
 # 1. 判断参数是否传入
 if [ $# -lt 1 ]
@@ -11,17 +12,15 @@ then
 fi
 
 # 2. 判断日期是否传入，如果传入日期则加载指定日期的数据，如果没有传入则加载前一天的数据
-# if [ "$2" == "" ];then
-# #     datestr`date -d '-1 day' +%F`
-#     datestr=$(date -d '-1 day' +%F)
-# else
-#     datestr=$2
-# fi
+if [ "$2" == "" ];then
+#     datestr`date -d '-1 day' +%F`
+    datestr=$(date -d '-1 day' +%F)
+else
+    datestr=$2
+fi
 # 也可以换成这种写法
 # [ "$2" ] && datestr=$2 || datestr=$(date -d '-1 day' +%F)
 
-# 首日日期定死
-datestr="2020-06-14"
 
 # 商品维度sql数据加载语句
 dim_sku_full_sql="
@@ -273,23 +272,126 @@ from pn left join rn on pn.region_id=rn.id
 
 # 用户维度表首日数据加载sql
 dim_user_zip_sql="
-insert overwrite table dim_user_zip partition (dt='9999-12-31')
+set hive.exec.dynamic.partition.mode=nonstrict; -- 若要使用动态分区，需要设置hive参数为非严格模式
+-- 第二种每日加载方案：最新数据 unio 9999-12-31分区数据，按照用户分区，生效时间降序，每个用户排在第一位就是最新数据，排在第1位之后是失效数据
+with old as (
+    select
+        id ,
+        login_name ,
+        nick_name ,
+        name ,
+        phone_num ,
+        email ,
+        user_level ,
+        birthday ,
+        gender ,
+        create_time ,
+        operate_time ,
+        start_date ,
+        end_date
+    from dim_user_zip where dt='9999-12-31'
+), new as (
+    select
+        id ,
+        login_name,
+        nick_name,
+        name,
+        phone_num,
+        email,
+        user_level,
+        birthday,
+        gender,
+        create_time,
+        operate_time,
+        start_date,
+        end_date
+    from(
+        select
+            data.id ,
+            data.login_name ,
+            data.nick_name ,
+            data.name ,
+            data.phone_num ,
+            data.email ,
+            data.user_level ,
+            data.birthday ,
+            data.gender ,
+            data.create_time ,
+            data.operate_time ,
+            '$datestr' start_date,  -- 新数据的生效时间，直接是当天
+            '9999-12-31' end_date, -- 新数据的失效时间，是9999-12-31
+            row_number() over (partition by data.id order by ts desc) rn
+        from ods_user_info_inc where dt='$datestr'
+    ) t1 where rn = 1
+), full_user as (
+    select
+        id ,
+        login_name,
+        nick_name,
+        name,
+        phone_num,
+        email,
+        user_level,
+        birthday,
+        gender,
+        create_time,
+        operate_time,
+        start_date,
+        end_date
+    from new
+    union
+    select
+        id ,
+        login_name,
+        nick_name,
+        name,
+        phone_num,
+        email,
+        user_level,
+        birthday,
+        gender,
+        create_time,
+        operate_time,
+        start_date,
+        end_date
+    from old
+)
+insert overwrite table dim_user_zip partition (dt)
 select
-    data.id,
-    data.login_name,
-    data.nick_name,
-    data.name,
-    data.phone_num,
-    data.email,
-    data.user_level,
-    data.birthday,
-    data.gender,
-    data.create_time,
-    data.operate_time,
-    -- 如果修改过，则生效日期为最后修改日期，否则为创建时间
-    date_format(nvl(data.operate_time, data.create_time), 'yyyy-MM-dd'), -- date.start_date,
-    "9999-12-31" -- date.end_date
-from ods_user_info_inc where dt='$datestr' and type='bootstrap-insert';
+    id ,
+    login_name,
+    nick_name,
+    name,
+    phone_num,
+    email,
+    user_level,
+    birthday,
+    gender,
+    create_time,
+    operate_time,
+    start_date,
+    if(rn=1,'9999-12-31', cast(date_sub('$datestr', 1) as string)),
+    if(rn=1,'9999-12-31', cast(date_sub('$datestr', 1) as string))
+from
+(
+    select
+        id ,
+        login_name,
+        nick_name,
+        name,
+        phone_num,
+        email,
+        user_level,
+        birthday,
+        gender,
+        create_time,
+        operate_time,
+        start_date,
+        end_date,
+        row_number() over (partition by id order by start_date desc ) rn
+    from full_user
+) t1
+;
 "
 
 
