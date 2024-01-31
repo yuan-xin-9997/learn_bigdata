@@ -375,7 +375,8 @@ with od as (
         data.sku_num,
         data.order_price*data.sku_num split_original_amount,
         data.split_activity_amount,
-        data.split_coupon_amount
+        data.split_coupon_amount,
+        data.split_total_amount split_payment_amount
     from ods_order_detail_inc where dt = '2020-06-14' and type='bootstrap-insert'
 ), oi as (
     -- 一行代表一个订单信息
@@ -413,42 +414,276 @@ with od as (
             row_number() over (partition by data.order_detail_id order by data.create_time asc) rn
         from ods_order_detail_coupon_inc where dt = '2020-06-14' and type='bootstrap-insert'
     )   t1 where rn =1
-), dc as (
-    select
-        dic_code,
-        dic_name source_type_name
-    from ods_base_dic_full where dt='2020-06-14' and parent_code='24'
 ), py as (
+    -- 支付表
     select
         data.order_id,
         data.payment_type payment_type_code,
-        data.total_amount split_payment_amount,
+        -- data.total_amount split_payment_amount,
         date_format(data.callback_time, 'yyyy-MM-dd') date_id,
         data.callback_time
     -- 只有支付成功callback_time才有值
     from ods_payment_info_inc where dt = '2020-06-14' and type='bootstrap-insert' and data.callback_time is not null
+), dc1 as (
+    select
+        dic_code,
+        dic_name payment_type_name
+    from ods_base_dic_full where dt='2020-06-14' and parent_code='11'
+), dc2 as (
+    select
+        dic_code,
+        dic_name source_type_name
+    from ods_base_dic_full where dt='2020-06-14' and parent_code='24'
 )
+insert overwrite table dwd_trade_pay_detail_suc_inc partition (dt)
+select
+    od.id,
+    od.order_id,
+    user_id,
+    sku_id,
+    province_id,
+    activity_id,
+    activity_rule_id,
+    coupon_id,
+    payment_type_code,
+    payment_type_name,
+    date_id,
+    callback_time,
+    source_id,
+    source_type_code,
+    source_type_name,
+    sku_num,
+    split_original_amount,
+    split_activity_amount,
+    split_coupon_amount,
+    split_payment_amount,
+    date_id  -- 动态分区字段
+from od inner join py on od.order_id=py.order_id -- 此处要内连接，因为订单详情表中会有支付失败的商品，此处只需要支付成功的数据
+left join oi on od.order_id = oi.id
+left join oda on od.id=oda.order_detail_id
+left join odc on od.id=odc.order_detail_id
+left join dc1 on py.payment_type_code=dc1.dic_code
+left join dc2 on od.source_type_code=dc2.dic_code
 ;
 
 ---  每日数据加载
+---     支付成功对业务的影响：
+---           1. 支付成功会更新payment_info中的支付记录的状态、callback_time时间
+---           2. 支付成功会更新order_info表和order_status字段，operator_time字段
+with od as (
+    select
+        data.id,
+        data.order_id,
+        data.sku_id,
+        data.source_id,
+        data.source_type source_type_code,
+        data.sku_num,
+        data.order_price*data.sku_num split_original_amount,
+        data.split_activity_amount,
+        data.split_coupon_amount,
+        data.split_total_amount split_payment_amount,
+        dt
+    -- 支付成功的订单的商品数据可能在当天，也可能在前一天（此处默认不超过1天），下订单之后如果30分钟内没有支付，则订单过期
+    from ods_order_detail_inc where (dt='2020-06-15' or dt=date_sub('2020-06-15', 1)) and (type='insert' or type='bootstrap-insert')
+), py as (
+    select
+        data.order_id,
+        data.payment_type payment_type_code,
+        -- data.total_amount split_payment_amount,
+        date_format(data.callback_time, 'yyyy-MM-dd') date_id,
+        data.callback_time
+    -- 注意此处，查询old字段(map)中包含callback_time这一key的字段，并且data字段的callback_time不为null
+    from ods_payment_info_inc where dt='2020-06-15' and type='update' and array_contains(map_keys(old), 'callback_time') and data.callback_time is not null
+), oi as (
+    select
+        data.id,
+        data.user_id,
+        data.province_id
+    -- 查询支付状态从未支付到已支付的
+    from ods_order_info_inc where dt='2020-06-15' and type='update' and old['order_status']='1001' and data.order_status='1002'
+), oda as (
+    -- 一行代表订单中一个商品参加的优惠活动
+    -- 生成的数据有问题，一个订单中一个商品可能使用了多张优惠券，取其中一条即可
+    select
+        order_detail_id,
+        activity_id,
+        activity_rule_id
+    from (
+        select
+            data.order_detail_id,
+           data.activity_id,
+           data.activity_rule_id,
+           row_number() over (partition by data.order_detail_id order by data.create_time asc) rn
+        -- 支付成功的订单的商品参加活动的数据可能在当天，也可能在前一天（此处默认不超过1天），下订单之后如果30分钟内没有支付，则订单过期
+        --     支付成功的订单的商品如果是当天下单支付，则从ODS分区中获取insert数据，如果是昨天下单今天支付，应该从前一天分区中获取商品活动信息
+        --     type=insert，如果前一天是首日此时type=bootstrap-insert
+        from ods_order_detail_activity_inc where (dt='2020-06-15' or dt=date_sub('2020-06-15', 1)) and (type='insert' or type='bootstrap-insert')
+    )   t1 where rn =1
+),odc as (
+    -- 一行代表订单中一个商品参加的优惠活动
+    -- 生成的数据有问题，一个订单中一个商品可能使用了多张优惠券，取其中一条即可
+    select
+        order_detail_id,
+        coupon_id
+    from (
+        select
+            data.order_detail_id,
+            data.coupon_id,
+            data.create_time,
+            row_number() over (partition by data.order_detail_id order by data.create_time asc) rn
+        from ods_order_detail_coupon_inc where (dt='2020-06-15' or dt=date_sub('2020-06-15', 1)) and (type='insert' or type='bootstrap-insert')
+    )   t1 where rn =1
+), dc1 as (
+    select
+        dic_code,
+        dic_name payment_type_name
+    from ods_base_dic_full where dt='2020-06-15' and parent_code='11'
+), dc2 as (
+    select
+        dic_code,
+        dic_name source_type_name
+    from ods_base_dic_full where dt='2020-06-15' and parent_code='24'
+)
+select
+    od.id,
+    od.order_id,
+    user_id,
+    sku_id,
+    province_id,
+    activity_id,
+    activity_rule_id,
+    coupon_id,
+    payment_type_code,
+    payment_type_name,
+    date_id,
+    callback_time,
+    source_id,
+    source_type_code,
+    source_type_name,
+    sku_num,
+    split_original_amount,
+    split_activity_amount,
+    split_coupon_amount,
+    split_payment_amount
+from od inner join py on od.order_id=py.order_id
+left join oi on od.order_id=oi.id
+left join oda on od.order_id=oda.order_detail_id
+left join odc on od.order_id=oda.order_detail_id
+left join dc1 on py.payment_type_code=dc1.dic_code
+left join dc2 on od.source_type_code=dc2.dic_code
+;
 
 
+-- 交易域购物车周期快照事实表
+DROP TABLE IF EXISTS dwd_trade_cart_full;
+CREATE EXTERNAL TABLE dwd_trade_cart_full
+(
+    `id`       STRING COMMENT '编号',
+    `user_id`  STRING COMMENT '用户id',
+    `sku_id`   STRING COMMENT '商品id',
+    `sku_name` STRING COMMENT '商品名称',
+    `sku_num`  BIGINT COMMENT '加购物车件数'
+) COMMENT '交易域购物车周期快照事实表'
+    PARTITIONED BY (`dt` STRING)
+    ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+    STORED AS ORC
+    LOCATION '/warehouse/gmall/dwd/dwd_trade_cart_full/'
+    TBLPROPERTIES ('orc.compress' = 'snappy');
+
+-- 数据加载，不用区分首日，每日，直接从ods层全量的购物车表中导入数据
+insert overwrite table dwd_trade_cart_full partition (dt='2020-06-14')
+select
+    id,
+    user_id,
+    sku_id,
+    sku_name,
+    sku_num
+from ods_cart_info_full where dt='2020-06-14' and is_ordered=0; -- 排除已经下单的购物车商品，购物车商品下单之后就不在购物车了
 
 
+-- 工具域优惠券使用(支付)事务事实表
+DROP TABLE IF EXISTS dwd_tool_coupon_used_inc;
+CREATE EXTERNAL TABLE dwd_tool_coupon_used_inc
+(
+    `id`           STRING COMMENT '编号',
+    `coupon_id`    STRING COMMENT '优惠券ID',
+    `user_id`      STRING COMMENT 'user_id',
+    `order_id`     STRING COMMENT 'order_id',
+    `date_id`      STRING COMMENT '日期ID',
+    `payment_time` STRING COMMENT '使用下单时间'
+) COMMENT '优惠券使用支付事务事实表'
+    PARTITIONED BY (`dt` STRING)
+    STORED AS ORC
+    LOCATION '/warehouse/gmall/dwd/dwd_tool_coupon_used_inc/'
+    TBLPROPERTIES ("orc.compress" = "snappy");
+
+-- 首日数据加载
+---  粒度：用户使用优惠券
+---  分区：每个分区保存是每个用户每个优惠券用于支付的行为
+insert overwrite table dwd_tool_coupon_used_inc partition (dt)
+select
+    data.id,
+    data.coupon_id,
+    data.user_id,
+    data.order_id,
+    date_format(data.used_time, 'yyyy-MM-dd') date_id,
+    data.used_time payment_time,
+    date_format(data.used_time, 'yyyy-MM-dd') date_id -- 动态分区字段
+from ods_coupon_use_inc where dt='2020-06-14' and type='bootstrap-insert' and data.used_time is not null; -- 筛选已支付使用的优惠券
+
+-- 修复元数据
+msck repair table ods_coupon_use_inc;
+
+-- 每日数据加载
+---   业务影响：订单中使用了优惠券，并且订单付款，此时会更新coupon_use表中的支付使用时间字段
+insert overwrite table dwd_tool_coupon_used_inc partition (dt='2020-06-15')
+select
+    data.id,
+    data.coupon_id,
+    data.user_id,
+    data.order_id,
+    date_format(data.used_time, 'yyyy-MM-dd') date_id,
+    data.used_time payment_time
+from ods_coupon_use_inc where dt='2020-06-15' and type='update' and array_contains(map_keys(old), 'used_time') and data.used_time is not null;
 
 
+-- 互动域收藏商品事务事实表
+DROP TABLE IF EXISTS dwd_interaction_favor_add_inc;
+CREATE EXTERNAL TABLE dwd_interaction_favor_add_inc
+(
+    `id`          STRING COMMENT '编号',
+    `user_id`     STRING COMMENT '用户id',
+    `sku_id`      STRING COMMENT 'sku_id',
+    `date_id`     STRING COMMENT '日期id',
+    `create_time` STRING COMMENT '收藏时间'
+) COMMENT '收藏事实表'
+    PARTITIONED BY (`dt` STRING)
+    STORED AS ORC
+    LOCATION '/warehouse/gmall/dwd/dwd_interaction_favor_add_inc/'
+    TBLPROPERTIES ("orc.compress" = "snappy");
 
+-- 粒度：用户收藏商品的行为
+-- 分区：用户当日收藏商品的行为
 
+-- 数据加载
+-- 首日加载
+insert overwrite table dwd_interaction_favor_add_inc partition (dt)
+select
+    data.id,
+    data.user_id,
+    data.sku_id,
+    date_format(data.create_time, 'yyyy-MM-dd') date_id,
+    data.create_time,
+    date_format(data.create_time, 'yyyy-MM-dd') date_id  -- 动态分区字段
+from ods_favor_info_inc where dt='2020-06-14' and type='bootstrap-insert'
+;
 
-
-
-
-
-
-
-
-
-
-
-
-
+-- 每日加载
+insert overwrite table dwd_interaction_favor_add_inc partition (dt='2020-06-15')
+select
+    data.id,
+    data.user_id,
+    data.sku_id,
+    date_format(data.create_time, 'yyyy-MM-dd') date_id,
+    data.create_time
+from ods_favor_info_inc where dt='2020-06-15' and type='insert';
