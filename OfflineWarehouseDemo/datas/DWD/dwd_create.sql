@@ -687,3 +687,129 @@ select
     date_format(data.create_time, 'yyyy-MM-dd') date_id,
     data.create_time
 from ods_favor_info_inc where dt='2020-06-15' and type='insert';
+
+
+-- 交易域交易流程累积快照事实表
+DROP TABLE IF EXISTS dwd_trade_trade_flow_acc;
+CREATE EXTERNAL TABLE dwd_trade_trade_flow_acc
+(
+    `order_id`              STRING COMMENT '订单id',
+    `user_id`               STRING COMMENT '用户id',
+    `province_id`           STRING COMMENT '省份id',
+    `order_date_id`         STRING COMMENT '下单日期id',
+    `order_time`            STRING COMMENT '下单时间',
+    `payment_date_id`       STRING COMMENT '支付日期id',
+    `payment_time`          STRING COMMENT '支付时间',
+    `finish_date_id`        STRING COMMENT '确认收货日期id',
+    `finish_time`           STRING COMMENT '确认收货时间',
+    `order_original_amount` DECIMAL(16, 2) COMMENT '下单原始价格',
+    `order_activity_amount` DECIMAL(16, 2) COMMENT '下单活动优惠分摊',
+    `order_coupon_amount`   DECIMAL(16, 2) COMMENT '下单优惠券优惠分摊',
+    `order_total_amount`    DECIMAL(16, 2) COMMENT '下单最终价格分摊',
+    `payment_amount`        DECIMAL(16, 2) COMMENT '支付金额'
+) COMMENT '交易域交易流程累积快照事实表'
+    PARTITIONED BY (`dt` STRING)
+    STORED AS ORC
+    LOCATION '/warehouse/gmall/dwd/dwd_trade_trade_flow_acc/'
+TBLPROPERTIES ('orc.compress' = 'snappy');
+
+-- 粒度：订单，不是商品，粒度的确定根据需求来决定
+-- 分区：
+--    9999-12-31：截止当天为止未完成（收货）的流程
+--    普通日期分区：保存当天完成的分区
+-- 数据来源：
+--    首日：从ODS层首日分区直接获取
+--    每日：从ODS层当日分区直接获取 + 9999-12-31分区
+
+-- 数据加载
+-- 首日加载
+set hive.exec.dynamic.partition.mode=nonstrict;
+with oi as (
+    select
+        data.id order_id,
+        data.user_id,
+        data.province_id,
+        date_format(data.create_time, 'yyyy-MM-dd') order_date_id,
+        data.create_time order_time,
+        data.original_total_amount order_original_amount,
+        data.activity_reduce_amount order_activity_amount,
+        data.coupon_reduce_amount order_coupon_amount,
+        data.total_amount order_total_amount
+    from ods_order_info_inc where dt='2020-06-14' and type='bootstrap-insert'
+), py as (
+    select
+        data.order_id,
+        date_format(data.callback_time, 'yyyy-MM-dd') payment_date_id,
+        data.callback_time payment_time,
+        data.total_amount  payment_amount
+    -- 筛选callback_time不为null的，即支付成功的字段
+    from ods_payment_info_inc where dt='2020-06-14' and type='bootstrap-insert' and data.callback_time is not null
+), os as (
+    select
+        data.order_id,
+        date_format(data.operate_time, 'yyyy-MM-dd') finish_date_id,
+        data.operate_time finish_time
+    -- 查询1004即已收货的订单+1003已经取消的订单
+    from ods_order_status_log_inc where dt='2020-06-14' and type='bootstrap-insert' and (data.order_status='1004' or data.order_status='1003')
+)
+insert overwrite table dwd_trade_trade_flow_acc partition (dt)
+select
+    oi.order_id,
+    user_id,
+    province_id,
+    order_date_id,
+    order_time,
+    payment_date_id,
+    payment_time,
+    finish_date_id,
+    finish_time,
+    order_original_amount,
+    order_activity_amount,
+    order_coupon_amount,
+    order_total_amount,
+    payment_amount,
+    -- finish_date_id有值表示已完成的订单，写入finish_date_id分区中，没有值表示未完成，写入9999-12-31分区中
+    `if`(finish_date_id is not null, finish_date_id, '9999-12-31') -- 动态分区字段，
+from oi left join py on oi.order_id=py.order_id
+left join os on oi.order_id=os.order_id
+;
+
+-- 每日加载
+with oi as (
+    select
+        data.id order_id,
+        data.user_id,
+        data.province_id,
+        date_format(data.create_time, 'yyyy-MM-dd') order_date_id,
+        data.create_time order_time,
+        data.original_total_amount order_original_amount,
+        data.activity_reduce_amount order_activity_amount,
+        data.coupon_reduce_amount order_coupon_amount,
+        data.total_amount order_total_amount
+    -- 从订单表中查询当日分区插入的数据，不需要查询update的数据，可以从订单流水表中查询
+    from ods_order_info_inc where dt='2020-06-15' and type='insert'
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
