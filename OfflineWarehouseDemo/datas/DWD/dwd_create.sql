@@ -788,24 +788,316 @@ with oi as (
         data.total_amount order_total_amount
     -- 从订单表中查询当日分区插入的数据，不需要查询update的数据，可以从订单流水表中查询
     from ods_order_info_inc where dt='2020-06-15' and type='insert'
+), py as (
+    select
+        data.order_id,
+        date_format(data.callback_time, 'yyyy-MM-dd') payment_date_id,
+        data.callback_time payment_time,
+        data.total_amount  payment_amount
+    -- 只需要支付成功的数据
+    from ods_payment_info_inc where dt='2020-06-15' and array_contains(map_keys(old), 'callback_time') and data.callback_time is not null
+), os as (
+    select
+        data.order_id,
+        date_format(data.operate_time, 'yyyy-MM-dd') finish_date_id,
+        data.operate_time finish_time
+    -- 查询1004即已收货的订单+1003已经取消的订单
+    from ods_order_status_log_inc where dt='2020-06-15' and type='insert' and (data.order_status='1004' or data.order_status='1003')
+), old as (
+    select
+        order_id,
+        user_id,
+        province_id,
+        order_date_id,
+        order_time,
+        payment_date_id,
+        payment_time,
+        finish_date_id,
+        finish_time,
+        order_original_amount,
+        order_activity_amount,
+        order_coupon_amount,
+        order_total_amount,
+        payment_amount
+    from dwd_trade_trade_flow_acc where dt='9999-12-31'
+), all_oi as (
+    select
+        order_id,
+        user_id,
+        province_id,
+        order_date_id,
+        order_time,
+        payment_date_id,
+        payment_time,
+        finish_date_id,
+        finish_time,
+        order_original_amount,
+        order_activity_amount,
+        order_coupon_amount,
+        order_total_amount,
+        payment_amount
+    from old
+    union
+    select
+        order_id,
+        user_id,
+        province_id,
+        order_date_id,
+        order_time,
+        null payment_date_id,
+        null payment_time,
+        null finish_date_id,
+        null finish_time,
+        order_original_amount,
+        order_activity_amount,
+        order_coupon_amount,
+        order_total_amount,
+        0 payment_amount
+    from oi
 )
+select
+    all_oi.order_id,
+    user_id,
+    province_id,
+    order_date_id,
+    order_time,
+    nvl(all_oi.payment_date_id, py.payment_date_id) payment_date_id,
+    nvl(all_oi.payment_time, py.payment_time) payment_time,
+    os.finish_date_id,
+    os.finish_time,
+    order_original_amount,
+    order_activity_amount,
+    order_coupon_amount,
+    order_total_amount,
+    `if`(all_oi.payment_date_id is not null, all_oi.payment_amount, py.payment_amount) payment_amount,
+    -- finish_date_id有值表示已完成的订单，写入finish_date_id分区中，没有值表示未完成，写入9999-12-31分区中
+    `if`(os.finish_date_id is not null, os.finish_date_id, '9999-12-31') -- 动态分区字段，
+from all_oi left join py on all_oi.order_id = py.order_id
+left join os on all_oi.order_id = os.order_id
 
 
+-- 流量域页面浏览事务事实表
+-- 1）建表语句
+DROP TABLE IF EXISTS dwd_traffic_page_view_inc;
+CREATE EXTERNAL TABLE dwd_traffic_page_view_inc
+(
+    `province_id`    STRING COMMENT '省份id',
+    `brand`          STRING COMMENT '手机品牌',
+    `channel`        STRING COMMENT '渠道',
+    `is_new`         STRING COMMENT '是否首次启动',
+    `model`          STRING COMMENT '手机型号',
+    `mid_id`         STRING COMMENT '设备id',
+    `operate_system` STRING COMMENT '操作系统',
+    `user_id`        STRING COMMENT '会员id',
+    `version_code`   STRING COMMENT 'app版本号',
+    `page_item`      STRING COMMENT '目标id ',
+    `page_item_type` STRING COMMENT '目标类型',
+    `last_page_id`   STRING COMMENT '上页类型',
+    `page_id`        STRING COMMENT '页面ID ',
+    `source_type`    STRING COMMENT '来源类型',
+    `date_id`        STRING COMMENT '日期id',
+    `view_time`      STRING COMMENT '跳入时间',
+    `session_id`     STRING COMMENT '所属会话id',
+    `during_time`    BIGINT COMMENT '持续时间毫秒'
+) COMMENT '页面日志表'
+    PARTITIONED BY (`dt` STRING)
+    STORED AS ORC
+    LOCATION '/warehouse/gmall/dwd/dwd_traffic_page_view_inc'
+    TBLPROPERTIES ('orc.compress' = 'snappy');
 
+-- 粒度：一个用户访问的一个页面
+-- 分区：存放的是当日用户访问页面数据
+-- 每日与首日数据加载一样（flume导出的逻辑一样，Flume每天会导出当日的日志数据到ods层，所以每日与首日数据加载一样）
+-- hive 3.1.x 对于struct直接过滤，会存在bug
+----    如果要对struct类型过滤，解决方案：
+--          （1）关闭cbo优化器 set hive.cbo.enable=false;
+--          （2)；根据struct内部的字段过滤
+-- 会话session的定义：每次会话的开时，访问日志的last_page_id都为null，
+set hive.cbo.enable=false;
+with pg as (
+      select ar,
+             brand,
+             channel,
+             is_new,
+             model,
+             operate_system,
+             user_id,
+             version_code,
+             page_item,
+             page_item_type,
+             last_page_id,
+             page_id,
+             source_type,
+             during_time,
+             date_id,
+             view_time,
+             -- 开窗
+             last_value(session_point, true) over (partition by user_id order by ts asc) session_id
+      from (
+          select
+            common.ar,
+            common.ba brand,
+            common.ch channel,
+            common.is_new is_new,
+            common.md model,
+    --         common.mid mid_id,
+            common.os operate_system,
+            common.uid user_id,
+            common.vc version_code,
+            page.item page_item,
+            page.item_type page_item_type,
+            page.last_page_id last_page_id,
+            page.page_id page_id,
+            page.source_type source_type,
+            page.during_time during_time,
+            date_format(from_utc_timestamp(ts, 'Asia/Shanghai'), 'yyyy-MM-dd') date_id,
+            date_format(from_utc_timestamp(ts, 'Asia/Shanghai'), 'yyyy-MM-dd HH:mm:ss') view_time,
+            `if`(page.last_page_id is null, concat(common.uid, "_", ts), null) session_point,
+            ts
+        from ods_log_inc where dt='2020-06-15' and page is not null
+      ) t1
+), pv as (
+    select
+        id province_id,
+        area_code
+    from ods_base_province_full where dt='2020-06-15'
+)
+insert overwrite table dwd_traffic_page_view_inc partition (dt='2020-06-15')
+select
+    province_id,
+    brand,
+    channel,
+    is_new,
+    model,
+--     mid_id,
+    null,
+    operate_system,
+    user_id,
+    version_code,
+    page_item,
+    page_item_type,
+    last_page_id,
+    page_id,
+    source_type,
+    date_id,
+    view_time,
+    session_id,
+    during_time
+from pg left join pv on pg.ar = pv.area_code
+;
 
+-- 用户域用户注册事务事实表
+-- 1）建表语句
+-- 粒度：用户注册行为
+DROP TABLE IF EXISTS dwd_user_register_inc;
+CREATE EXTERNAL TABLE dwd_user_register_inc
+(
+    `user_id`        STRING COMMENT '用户ID',
+    `date_id`        STRING COMMENT '日期ID',
+    `create_time`    STRING COMMENT '注册时间',
+    `channel`        STRING COMMENT '应用下载渠道',
+    `province_id`    STRING COMMENT '省份id',
+    `version_code`   STRING COMMENT '应用版本',
+    `mid_id`         STRING COMMENT '设备id',
+    `brand`          STRING COMMENT '设备品牌',
+    `model`          STRING COMMENT '设备型号',
+    `operate_system` STRING COMMENT '设备操作系统'
+) COMMENT '用户域用户注册事务事实表'
+    PARTITIONED BY (`dt` STRING)
+    STORED AS ORC
+    LOCATION '/warehouse/gmall/dwd/dwd_user_register_inc/'
+    TBLPROPERTIES ("orc.compress" = "snappy");
+-- 2）数据装载 todo 15的没有数据，dt=14的也没有
+-- 首日
+--    首日注册数据需要从用户表获取历史用户注册数据
+-- set hive.execution.engine=mr; -- 针对hive与Spark不兼容的情况,[42000][3] Error while processing statement: FAILED: Execution Error, return code 3 from org.apache.hadoop.hive.ql.exec.spark.SparkTask. Spark job failed during runtime. Please check stacktrace for the root cause.
+set hive.execution.engine=spark;
+with us as (
+    -- 查询截止2020-06-14所有用户注册数据
+    select
+        data.id user_id,
+        date_format(data.create_time, 'yyyy-MM-dd') date_id,
+        data.create_time
+    from ods_user_info_inc where dt='2020-06-14' and type='bootstrap-insert'
+), lg as (
+    -- 查询2020-06-14当天用户注册的设备信息，之前的无法拿到
+    select
+        common.ch channel,
+        common.ar,
+        common.vc version_code,
+        common.ba brand,
+        common.md model,
+        common.os operate_system,
+        common.uid
+    from ods_log_inc where dt='2020-06-14' and common.uid is not null and page.page_id='register'
+), pv as (
+    -- 查询省份信息
+    select
+        id province_id,
+        area_code
+    from ods_base_province_full where dt='2020-06-14'
+)
+-- insert overwrite table dwd_user_register_inc partition (dt='2020-06-14')
+insert overwrite table dwd_user_register_inc partition (dt)
+select
+    us.user_id,
+    date_id,
+    create_time,
+    channel,
+    province_id,
+    version_code,
+    null,
+    brand,
+    model,
+    operate_system,
+    date_id
+from us left join lg on us.user_id=lg.uid
+left join pv on lg.ar=pv.area_code;
 
-
-
-
-
-
-
-
-
-
-
-
-
+-- 每日数据加载
+-- 用户注册业务对数据的影响：在用户表user_info中新增一条数据
+set hive.execution.engine=mr;
+ set hive.exec.dynamic.partition.mode=nonstrict;
+with us as (
+    -- 查询截止2020-06-15所有用户注册数据
+    select
+        data.id user_id,
+        date_format(data.create_time, 'yyyy-MM-dd') date_id,
+        data.create_time
+    from ods_user_info_inc where dt='2020-06-15' and type='insert'
+), lg as (
+    -- 查询2020-06-15当天用户注册的设备信息，之前的无法拿到
+    select
+        common.ch channel,
+        common.ar,
+        common.vc version_code,
+        common.ba brand,
+        common.md model,
+        common.os operate_system,
+        common.uid
+    from ods_log_inc where dt='2020-06-15' and common.uid is not null and page.page_id='register'
+), pv as (
+    -- 查询省份信息
+    select
+        id province_id,
+        area_code
+    from ods_base_province_full where dt='2020-06-15'
+)
+insert overwrite table dwd_user_register_inc partition (dt='2020-06-15')
+select
+    us.user_id,
+    date_id,
+    create_time,
+    channel,
+    province_id,
+    version_code,
+    null,
+    brand,
+    model,
+    operate_system
+--     ,date_id
+from us left join lg on us.user_id=lg.uid
+left join pv on lg.ar=pv.area_code;
 
 
 
