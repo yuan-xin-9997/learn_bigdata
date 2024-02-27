@@ -873,7 +873,7 @@ select
     -- finish_date_id有值表示已完成的订单，写入finish_date_id分区中，没有值表示未完成，写入9999-12-31分区中
     `if`(os.finish_date_id is not null, os.finish_date_id, '9999-12-31') -- 动态分区字段，
 from all_oi left join py on all_oi.order_id = py.order_id
-left join os on all_oi.order_id = os.order_id
+left join os on all_oi.order_id = os.order_id;
 
 
 -- 流量域页面浏览事务事实表
@@ -1007,7 +1007,7 @@ CREATE EXTERNAL TABLE dwd_user_register_inc
     STORED AS ORC
     LOCATION '/warehouse/gmall/dwd/dwd_user_register_inc/'
     TBLPROPERTIES ("orc.compress" = "snappy");
--- 2）数据装载 todo 15的没有数据，dt=14的也没有
+-- 2）数据装载
 -- 首日
 --    首日注册数据需要从用户表获取历史用户注册数据
 -- set hive.execution.engine=mr; -- 针对hive与Spark不兼容的情况,[42000][3] Error while processing statement: FAILED: Execution Error, return code 3 from org.apache.hadoop.hive.ql.exec.spark.SparkTask. Spark job failed during runtime. Please check stacktrace for the root cause.
@@ -1101,7 +1101,99 @@ left join pv on lg.ar=pv.area_code;
 
 
 
+-- 9.10 用户域用户登录事务事实表
+-- 粒度：一行表示一个用户一次登录行为
+-- 1）建表语句
+DROP TABLE IF EXISTS dwd_user_login_inc;
+CREATE EXTERNAL TABLE dwd_user_login_inc
+(
+    `user_id`        STRING COMMENT '用户ID',
+    `date_id`        STRING COMMENT '日期ID',
+    `login_time`     STRING COMMENT '登录时间',
+    `channel`        STRING COMMENT '应用下载渠道',
+    `province_id`    STRING COMMENT '省份id',
+    `version_code`   STRING COMMENT '应用版本',
+    `mid_id`         STRING COMMENT '设备id',
+    `brand`          STRING COMMENT '设备品牌',
+    `model`          STRING COMMENT '设备型号',
+    `operate_system` STRING COMMENT '设备操作系统'
+) COMMENT '用户域用户登录事务事实表'
+    PARTITIONED BY (`dt` STRING)
+    STORED AS ORC
+    LOCATION '/warehouse/gmall/dwd/dwd_user_login_inc/'
+    TBLPROPERTIES ("orc.compress" = "snappy");
 
 
+-- 数据加载
+-- 每日与首日数据导入逻辑都一样，都只能根据日志得知用户是否登录
+--   判断登录：在一个会话中，如果数据uid有值就认定为登录一次
+insert overwrite table dwd_user_register_inc partition (dt='2020-06-14')
+select uid,
+       date_id,
+       login_time,
+       channel,
+       province_id,
+       version_code,
+       null,
+       brand,
+       model,
+       operate_system
+from (select uid,
+             date_id,
+             login_time,
+             channel,
+             ar,
+             version_code,
+             brand,
+             model,
+             operate_system,
+             rn
+      from (select channel,
+                   ar,
+                   version_code,
+                   brand,
+                   model,
+                   operate_system,
+                   uid,
+                   date_id,
+                   login_time,
+                   -- 对session id开窗，只取每条会话登录的那一次页面点击
+                   row_number() over (partition by seesion_id order by ts) rn
+            from (select channel,
+                         ar,
+                         version_code,
+                         brand,
+                         model,
+                         operate_system,
+                         uid,
+                         ts,
+                         date_format(from_utc_timestamp(ts, "Asia/Shanghai"), 'yyyy-MM-dd HH:mm:ss') login_time,
+                         date_format(from_utc_timestamp(ts, "Asia/Shanghai"), 'yyyy-MM-dd')          date_id,
+                         last_page_id,
+                         page_id,
+                         -- 为每一次会话内的页面点击行为补全session id
+                         last_value(session_point, true) over (partition by uid order by ts asc)     seesion_id
+                  from (select common.ch                                                        channel,
+                               common.ar,
+                               common.vc                                                        version_code,
+                               common.ba                                                        brand,
+                               common.md                                                        model,
+                               common.os                                                        operate_system,
+                               common.uid,
+                               page.last_page_id,
+                               page.page_id,
+                               ts,
+                               -- 找到每个会话的起点
+                               if(page.last_page_id is null, concat(common.uid, '-', ts), null) session_point
+                        from ods_log_inc
+                        where dt = '2020-06-14'
+                          and page.page_id is not null) t1) t2
+            where t2.uid is not null) t3  -- 一次会话中只要有uid称之为一次登录
+      where rn = 1) t4
+         left join (select id province_id,
+                           area_code
+                    from ods_base_province_full
+                    where dt = '2020-06-14') t5 on t4.ar = t5.area_code;
 
 
+set hive.execution.engine;
