@@ -544,6 +544,7 @@ with od as (
         dic_name source_type_name
     from ods_base_dic_full where dt='2020-06-15' and parent_code='24'
 )
+insert overwrite table dwd_trade_pay_detail_suc_inc partition (dt='2020-06-15')
 select
     od.id,
     od.order_id,

@@ -241,6 +241,7 @@ with od as (
         dic_name source_type_name
     from ods_base_dic_full where dt='$datestr' and parent_code='24'
 )
+insert overwrite table dwd_trade_pay_detail_suc_inc partition (dt='$datestr')
 select
     od.id,
     od.order_id,
