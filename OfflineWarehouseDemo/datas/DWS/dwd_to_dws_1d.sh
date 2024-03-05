@@ -226,15 +226,31 @@ from dwd_traffic_page_view_inc where dt='$datestr' -- 页面浏览只有首日�
 group by session_id,mid_id,brand,model,operate_system,version_code,channel;
 "
 
+dws_trade_user_order_1d_sql="
+insert overwrite table dws_trade_user_order_1d partition(dt='$datestr')
+select
+    user_id,
+    count(distinct(order_id)),
+    sum(sku_num),
+    sum(split_original_amount),
+    sum(nvl(split_activity_amount,0)),
+    sum(nvl(split_coupon_amount,0)),
+    sum(split_total_amount)
+from dwd_trade_order_detail_inc
+where dt='$datestr'
+group by user_id;
+"
 
 
 case $1 in
 "all")
-/opt/module/hive/bin/hive -e "use gmall; set hive.exec.dynamic.partition.mode=nonstrict;${dws_interaction_sku_favor_add_1d_sql};${dws_tool_user_coupon_coupon_used_1d_sql};${dws_trade_province_order_1d_sql}; ${dws_trade_user_cart_add_1d_sql}; ${dws_trade_user_sku_order_1d_sql}; ${dws_trade_user_payment_1d_sql}; ${dws_traffic_page_visitor_page_view_1d_sql};${dws_traffic_session_page_view_1d_sql}"
-
+/opt/module/hive/bin/hive -e "use gmall; set hive.exec.dynamic.partition.mode=nonstrict;${dws_trade_user_order_1d_sql};${dws_interaction_sku_favor_add_1d_sql};${dws_tool_user_coupon_coupon_used_1d_sql};${dws_trade_province_order_1d_sql}; ${dws_trade_user_cart_add_1d_sql}; ${dws_trade_user_sku_order_1d_sql}; ${dws_trade_user_payment_1d_sql}; ${dws_traffic_page_visitor_page_view_1d_sql};${dws_traffic_session_page_view_1d_sql}"
 ;;
 "dws_interaction_sku_favor_add_1d")
     /opt/module/hive/bin/hive -e "use gmall; set hive.exec.dynamic.partition.mode=nonstrict; ${dws_interaction_sku_favor_add_1d_sql}"
+;;
+"dws_trade_user_order_1d")
+    /opt/module/hive/bin/hive -e "use gmall; set hive.exec.dynamic.partition.mode=nonstrict; ${dws_trade_user_order_1d_sql}"
 ;;
 "dws_tool_user_coupon_coupon_used_1d")
 /opt/module/hive/bin/hive -e "use gmall; set hive.exec.dynamic.partition.mode=nonstrict; ${dws_tool_user_coupon_coupon_used_1d_sql}"
