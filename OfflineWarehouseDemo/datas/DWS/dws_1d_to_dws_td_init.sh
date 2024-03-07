@@ -8,7 +8,7 @@ if [ $# -lt 1 ];then
     exit 1
 fi
 
-dws_trade_user_order_1d_sql="
+dws_trade_user_order_td="
 insert overwrite table dws_trade_user_order_td partition (dt='2020-06-14')
 select
     user_id,
@@ -26,7 +26,7 @@ group by user_id
 ;
 "
 
-dws_user_user_login_td_sql="
+dws_user_user_login_td="
 with full_user as (select id,
                           date_format(create_time, 'yyyy-MM-dd') date_id
                    from dim_user_zip
@@ -59,13 +59,12 @@ group by id
 # 2. 根据第一个参数匹配加载数据
 case $1 in
 "all")
-/opt/module/hive/bin/hive -e "use gmall; set hive.exec.dynamic.partition.mode=nonstrict;${dws_trade_user_order_1d_sql
-};${dws_user_user_login_td_sql};"
+/opt/module/hive/bin/hive -e "use gmall; set hive.exec.dynamic.partition.mode=nonstrict;${dws_trade_user_order_td};${dws_user_user_login_td};"
 ;;
 "dws_trade_user_order_td")
-/opt/module/hive/bin/hive -e "use gmall; set hive.exec.dynamic.partition.mode=nonstrict;${dws_trade_user_order_td_sql};"
+/opt/module/hive/bin/hive -e "use gmall; set hive.exec.dynamic.partition.mode=nonstrict;${dws_trade_user_order_td};"
 ;;
 "dws_user_user_login_td")
-/opt/module/hive/bin/hive -e "use gmall; set hive.exec.dynamic.partition.mode=nonstrict;${dws_user_user_login_td_sql};"
+/opt/module/hive/bin/hive -e "use gmall; set hive.exec.dynamic.partition.mode=nonstrict;${dws_user_user_login_td};"
 ;;
 esac
