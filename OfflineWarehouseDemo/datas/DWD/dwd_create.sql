@@ -1008,11 +1008,13 @@ CREATE EXTERNAL TABLE dwd_user_register_inc
     STORED AS ORC
     LOCATION '/warehouse/gmall/dwd/dwd_user_register_inc/'
     TBLPROPERTIES ("orc.compress" = "snappy");
+
 -- 2）数据装载
 -- 首日
 --    首日注册数据需要从用户表获取历史用户注册数据
 -- set hive.execution.engine=mr; -- 针对hive与Spark不兼容的情况,[42000][3] Error while processing statement: FAILED: Execution Error, return code 3 from org.apache.hadoop.hive.ql.exec.spark.SparkTask. Spark job failed during runtime. Please check stacktrace for the root cause.
 set hive.execution.engine=spark;
+ set hive.exec.dynamic.partition.mode=nonstrict;
 with us as (
     -- 查询截止2020-06-14所有用户注册数据
     select
@@ -1128,7 +1130,7 @@ CREATE EXTERNAL TABLE dwd_user_login_inc
 -- 数据加载
 -- 每日与首日数据导入逻辑都一样，都只能根据日志得知用户是否登录
 --   判断登录：在一个会话中，如果数据uid有值就认定为登录一次
-insert overwrite table dwd_user_register_inc partition (dt='2020-06-14')
+insert overwrite table dwd_user_login_inc partition (dt='2020-06-14')
 select uid,
        date_id,
        login_time,
