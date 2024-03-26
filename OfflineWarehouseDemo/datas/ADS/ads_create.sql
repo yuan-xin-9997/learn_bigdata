@@ -260,12 +260,14 @@ from (
           and login_date_last <= date_sub('2020-06-14', 8)) t2
                   on t1.user_id = t2.user_id) t4;
 
---
+
+
 -- 11.2.2 用户留存率
 -- 留存分析一般包含新增留存和活跃留存分析。
 -- 新增留存分析是分析某天的新增用户中，有多少人有后续的活跃行为。活跃留存分析是分析某天的活跃用户中，有多少人有后续的活跃行为。
 -- 留存分析是衡量产品对用户价值高低的重要指标。
--- 此处要求统计新增留存率，新增留存率具体是指留存用户数与新增用户数的比值，例如2020-06-14新增100个用户，1日之后（2020-06-15）这100人中有80个人活跃了，那2020-06-14的1日留存数则为80，2020-06-14的1日留存率则为80%。
+-- 此处要求统计新增留存率，新增留存率具体是指留存用户数与新增用户数的比值，例如2020-06-14新增100个用户，1日之后（2020-06-15）
+--       这100人中有80个人活跃了，那2020-06-14的1日留存数则为80，2020-06-14的1日留存率则为80%。
 -- 要求统计每天的1至7日留存率，如下图所示。
 
 -- 1）建表语句
@@ -282,21 +284,152 @@ CREATE EXTERNAL TABLE ads_user_retention
     ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
     LOCATION '/warehouse/gmall/ads/ads_user_retention/';
 -- 2）数据装载
+-- 留存天数n(retention_day)=当前活跃日期(dt)-用户新增日期(create_date)
+/*
+有6-14日登录的数据，可以求6-13日注册的那批人的留存了1日的留存率
+有6-14日登录的数据，可以求6-12日注册的那批人的留存了2日的留存率
+有6-14日登录的数据，可以求6-11日注册的那批人的留存了3日的留存率
+有6-14日登录的数据，可以求6-10日注册的那批人的留存了4日的留存率
+有6-14日登录的数据，可以求6-9日注册的那批人的留存了5日的留存率
+有6-14日登录的数据，可以求6-8日注册的那批人的留存了6日的留存率
+有6-14日登录的数据，可以求6-7日注册的那批人的留存了7日的留存率
+*/
+
+insert overwrite table ads_user_retention
+select *
+from ads_user_retention
+union
+select '2020-06-14'                                                        dt,
+       create_date,
+       datediff('2020-06-14', create_date)                                 retention_day,
+       count(t2.user_id)                                                   retention_count,
+       count(t1.user_id)                                                   new_user_count,
+       cast(count(t2.user_id) / count(t1.user_id) as decimal(16, 2)) * 100 retention_rate
+from (
+-- 计算6月7日-6月13日各注册的人
+         select dt create_date,
+                user_id
+         from dwd_user_register_inc -- 一个用户注册一次是一行
+         where dt between date_sub('2020-06-14', 7) and date_sub('2020-06-14', 1)) t1
+         left join (
+-- 计算2020-06-14活跃登录的所有人
+    select user_id
+    from dwd_user_login_inc -- 粒度：一个用户的一次登录是一行
+    where dt = '2020-06-14'
+    group by user_id) t2
+                   on t1.user_id = t2.user_id
+group by create_date
+;
+
+-- 11.2.3 用户新增活跃统计
+-- 需求说明如下
+-- 统计周期	指标	指标说明
+-- 最近1、7、30日	新增用户数	略
+-- 最近1、7、30日	活跃用户数	略
+-- 1）建表语句
+DROP TABLE IF EXISTS ads_user_stats;
+CREATE EXTERNAL TABLE ads_user_stats
+(
+    `dt`                STRING COMMENT '统计日期',
+    `recent_days`       BIGINT COMMENT '最近n日,1:最近1日,7:最近7日,30:最近30日',
+    `new_user_count`    BIGINT COMMENT '新增用户数',
+    `active_user_count` BIGINT COMMENT '活跃用户数'
+) COMMENT '用户新增活跃统计'
+    ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+    LOCATION '/warehouse/gmall/ads/ads_user_stats/';
+-- 2）数据装载
+insert overwrite table ads_user_stats
+select * from ads_user_stats
+union
+select
+    '2020-06-14' dt,
+       nvl(t1.recent_days, t2.recent_days) recent_days,
+       nvl(new_user_count, 0) new_user_count,
+       nvl(active_user_count, 0) active_user_count
+from (
+-- 计算新增用户数
+         select recent_days,
+                count(*) new_user_count
+         from dwd_user_register_inc -- 粒度：一行代表一个注册成功的用户
+                  lateral view explode(array(1, 7, 30)) tmp as recent_days -- 第2步执行：使用侧窗函数列转行，复制3份数据，并添加recent_days
+         where dt > date_sub('2020-06-14', 30)          -- 第1步执行：取最近30天所有用户注册的数据
+           and dt > date_sub('2020-06-14', recent_days) -- 第3步：过滤出要统计的时间周期范围内的数据
+         group by recent_days -- 将过滤后的复制了3份的数据集按照recent_days分组
+     ) t1
+         full join -- 此处应该使用full join！！！两个数据没有业务上的联系，最近范围的注册和登录没有联系
+    (
+-- 计算活跃用户数
+        select recent_days,
+               count(*) active_user_count
+        from dws_user_user_login_td -- 粒度：在每个分区中，一个用户是一行
+                 lateral view explode(array(1, 7, 30)) tmp as recent_days
+        where dt = '2020-06-14'
+          and login_date_last > date_sub('2020-06-14', 30)          -- 只统计最近1,7,30天登录过的用户，把30天内登录的用户过滤出来
+          and login_date_last > date_sub('2020-06-14', recent_days) -- 过滤此每一份中，在所有统计日期内登录的用户
+        group by recent_days) t2
+on t1.recent_days=t2.recent_days
+;
 
 
+-- 11.2.4 用户行为漏斗分析
+-- 漏斗分析是一个数据分析模型，它能够科学反映一个业务流程从起点到终点各阶段用户转化情况。由于其能将各阶段环节都展示出来，故哪个阶段存在问题，就能一目了然。
+-- 该需求要求统计一个完整的购物流程各个阶段的人数，具体说明如下：
+-- 统计周期	指标	说明
+-- 最近1 日	首页浏览人数	略
+-- 最近1 日	商品详情页浏览人数	略
+-- 最近1 日	加购人数	略
+-- 最近1 日	下单人数	略
+-- 最近1 日	支付人数	支付成功人数
+-- 1）建表语句
+DROP TABLE IF EXISTS ads_user_action;
+CREATE EXTERNAL TABLE ads_user_action
+(
+    `dt`                STRING COMMENT '统计日期',
+    `home_count`        BIGINT COMMENT '浏览首页人数',
+    `good_detail_count` BIGINT COMMENT '浏览商品详情页人数',
+    `cart_count`        BIGINT COMMENT '加入购物车人数',
+    `order_count`       BIGINT COMMENT '下单人数',
+    `payment_count`     BIGINT COMMENT '支付人数'
+) COMMENT '漏斗分析'
+    ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+    LOCATION '/warehouse/gmall/ads/ads_user_action/';
+-- 2）数据装载
+select dt, home_count, good_detail_count, cart_count, order_count, payment_count
+from ads_user_action;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+insert overwrite table ads_user_action
+select * from ads_user_action
+union
+select
+    '202-06-14' dt,
+    home_count, good_detail_count, cart_count, order_count, payment_count
+from (
+-- 计算首页浏览人数、浏览商品详情页人数
+select
+--     count(distinct user_id)
+count(distinct if(page_id='home', user_id, null)) home_count,
+count(distinct if(page_id='good_detail', user_id, null)) good_detail_count
+from dwd_traffic_page_view_inc
+where dt='2020-06-14'
+and user_id is not null  -- user_id 存在为null的
+and (page_id='home' or page_id='good_detail')
+-- group by page_id
+) t1 join (
+-- 计算加入购物车人数
+select
+    count(*) cart_count
+from dws_trade_user_cart_add_1d  -- 存放的都是在当天发生了加购事实的人的统计，一行驶一个人
+where dt='2020-06-14'
+)t2 join (
+-- 计算下单人数
+select
+    count(*) order_count
+from dws_trade_user_order_1d
+where dt='2020-06-14'
+) t3 join (
+-- 计算支付人数
+select
+    count(*) payment_count
+from dws_trade_user_payment_1d
+where dt='2020-06-14'
+) t4 ;
