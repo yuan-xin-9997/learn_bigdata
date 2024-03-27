@@ -433,3 +433,263 @@ select
 from dws_trade_user_payment_1d
 where dt='2020-06-14'
 ) t4 ;
+
+
+
+-- 11.2.5 新增下单用户统计
+-- 需求说明如下
+-- 统计周期	指标	说明
+-- 最近1、7、30日	新增下单人数	略
+
+-- 1）建表语句
+DROP TABLE IF EXISTS ads_new_order_user_stats;
+CREATE EXTERNAL TABLE ads_new_order_user_stats
+(
+    `dt`                   STRING COMMENT '统计日期',
+    `recent_days`          BIGINT COMMENT '最近天数,1:最近1天,7:最近7天,30:最近30天',
+    `new_order_user_count` BIGINT COMMENT '新增下单人数'
+) COMMENT '新增交易用户统计'
+    ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+    LOCATION '/warehouse/gmall/ads/ads_new_order_user_stats/';
+-- 2）数据装载
+
+select dt, recent_days, new_order_user_count
+from ads_new_order_user_stats;
+
+insert overwrite table ads_new_order_user_stats
+select *
+from ads_new_order_user_stats
+union
+select '2020-06-14' dt,
+       recent_days,
+       count(*)     new_order_user_count
+from dws_trade_user_order_td
+         lateral view explode(array(1, 7, 30)) tmp as recent_days
+where dt = '2020-06-14'
+  and order_date_first > date_sub('2020-06-14', 30)
+  and order_date_first > date_sub('2020-06-14', recent_days)
+group by recent_days
+;
+
+-- 11.2.6 最近7日内连续3日下单用户数
+
+-- 1）建表语句
+DROP TABLE IF EXISTS ads_order_continuously_user_count;
+CREATE EXTERNAL TABLE ads_order_continuously_user_count
+(
+    `dt`                            STRING COMMENT '统计日期',
+    `recent_days`                   BIGINT COMMENT '最近天数,7:最近7天',
+    `order_continuously_user_count` BIGINT COMMENT '连续3日下单用户数'
+) COMMENT '新增交易用户统计'
+    ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+    LOCATION '/warehouse/gmall/ads/ads_order_continuously_user_count/';
+-- 2）数据装载
+
+/*
+套路：把我所求的复合连续特征的数据的规律，按照规律进行统计
+
+方法1
+连续3日下单：对用户分组，组内按日期升序排序
+           统计时，样本范围至少3行，在3行的范围内，如果第一行和最后一行，日期相差2，那表示该用户连续3日下单
+*/
+
+insert overwrite table ads_order_continuously_user_count
+select *
+from ads_order_continuously_user_count
+union
+select '2020-06-14' dt,
+       7            recent_days,
+       count(*)     order_continuously_user_count
+from (select user_id
+      from (select user_id,
+                   dt, -- 下单日期
+                   datediff(lead(dt, 2, '9999/12/31') over (partition by user_id order by dt), dt) diffnum
+            from dws_trade_user_order_1d -- 表粒度：一行表示一位用户下单一次
+            where dt > date_sub('2020-06-14', 7)) t1
+      where t1.diffnum = 2
+      group by user_id) t2
+;
+
+
+/* 方法2
+   把握连续的特征：使用参照物，判断是否连续
+
+   假设有两列A，B。A列式连续的，每次递增X，B列也是连续的，每次递增Y
+   那么A、B两列的差值，连续两行的差值是固定的，都是Y-X
+   A        B        B-A
+   a        b        b-a
+   a+X      b+Y      (b-a)+(Y-X)
+   a+2X     b+2Y     (b-a)+2(Y-X)
+   a+3X     b+3Y     (b-a)+3(Y-X)
+
+   理论联系实际
+   A列如果是日期，要计算A列日期连续的次数，
+   只需要提供一个也是连续的参照列，只需要这一列和日期的差值列的连续两行的差值是固定的，那么就可以证明日期是连续的
+   dt            参照列(增量和日期列一值，使用行号)        差值列
+   2020-06-10    1                                   2020-06-09
+   2020-06-11    2                                   2020-06-09
+   2020-06-12    3                                   2020-06-09
+   2020-06-15    4                                   2020-06-11
+   2020-06-17    5                                   2020-06-12
+   2020-06-19    6                                   2020-06-13
+
+*/
+insert overwrite table ads_order_continuously_user_count
+select *
+from ads_order_continuously_user_count
+union
+select '2020-06-14'            dt,
+       7                       recent_days,
+       count(distinct user_id) order_continuously_user_count
+from (select user_id
+      from (select user_id,
+                   dt, -- 下单日期
+                   row_number() over (partition by user_id order by dt)               rn,
+                   date_sub(dt, row_number() over (partition by user_id order by dt)) diff
+            from dws_trade_user_order_1d -- 表粒度：一行表示一位用户下单一次
+            where dt > date_sub('2020-06-14', 7)) t1
+      group by user_id, diff
+      having count(*) >= 3 -- 连续3天，如果需要连续n天，则count(*)>=n
+     ) t1
+;
+
+/*
+方法3
+将1个人在最近7天所有的下单日期升序排序，并且补齐7天日期，如果此人在当天下单，flag=1，否则flag=0
+*/
+insert overwrite table ads_order_continuously_user_count
+select *
+from ads_order_continuously_user_count
+union
+select
+    '2020-06-14'            dt,
+       7                       recent_days,
+       count(user_id) order_continuously_user_count
+from (
+select
+    user_id,
+    sum(flag) sum_flag
+from (
+select user_id,
+       dt,
+       case dt
+           when date_sub('2020-06-15', 0) then 1
+           when date_sub('2020-06-15', 1) then 10
+           when date_sub('2020-06-15', 2) then 100
+           when date_sub('2020-06-15', 3) then 1000
+           when date_sub('2020-06-15', 4) then 10000
+           when date_sub('2020-06-15', 5) then 100000
+           when date_sub('2020-06-15', 6) then 1000000
+           else 0
+           end flag
+from dws_trade_user_order_1d
+where dt > date_sub('2020-06-15', 7)
+) t1
+group by user_id
+) t2
+where sum_flag like '%111%'
+;
+
+/*
+ 方法4: 先判断相邻的两天是不是连续
+ 将所有下单的日期升序排序，将相邻两天的连续情况，通过flag产生新的连续flag，判断其种有没有111
+ */
+ insert overwrite table ads_order_continuously_user_count
+select *
+from ads_order_continuously_user_count
+union
+select
+    '2020-06-14'            dt,
+       7                       recent_days,
+       count(user_id) order_continuously_user_count
+from (
+select
+    user_id,
+    concat_ws('', collect_list(flag)) finalflag
+from (
+select
+    user_id,
+    dt,  -- 下单日期
+    if(datediff(dt, lag(dt, 1, dt) over (partition by user_id order by dt)) < 2, '1', '0') flag
+from dws_trade_user_order_1d
+where dt>date_sub('2020-06-15', 7)
+) t1
+group by user_id
+) t2
+where finalflag like '%111%'
+;
+
+
+
+
+
+/*
+拓展：如果断一天也算连续（例如2020-06-12,2020-06-13,2020-06-15），应该如何计算？
+
+连续3日下单，何为断1天也算连续
+    第1种：连续3天中，只允许断一天
+    第2种，断1天也算连续，例如，2020-06-12，2020-06-14，2020-06-16
+
+统计时，样本范围至少3行，在3行的范围内，如果第1行和最后1行，相差n，他们就是连续的
+*/
+
+-- 第1种：连续3天中，只允许断一天
+insert overwrite table ads_order_continuously_user_count
+select *
+from ads_order_continuously_user_count
+union
+select '2020-06-14' dt,
+       7            recent_days,
+       count(*)     order_continuously_user_count
+from (select user_id
+      from (select user_id,
+                   dt, -- 下单日期
+                   datediff(lead(dt, 2, '9999/12/31') over (partition by user_id order by dt), dt) diffnum
+            from dws_trade_user_order_1d -- 表粒度：一行表示一位用户下单一次
+            where dt > date_sub('2020-06-14', 7)) t1
+      where t1.diffnum < 4
+      group by user_id) t2
+;
+
+-- 第2种，断1天也算连续，例如，2020-06-12，2020-06-14，2020-06-16
+/*
+ 将所有下单的日期升序排序，将相邻两天的连续情况，通过flag产生新的连续flag，判断其种有没有111
+ */
+--  insert overwrite table ads_order_continuously_user_count
+-- select *
+-- from ads_order_continuously_user_count
+-- union
+select
+    '2020-06-14'            dt,
+       7                       recent_days,
+       count(user_id) order_continuously_user_count
+from (
+select
+    user_id,
+    concat_ws('', collect_list(flag)) finalflag
+from (
+select
+    user_id,
+    dt,  -- 下单日期
+    if(datediff(dt, lag(dt, 1, dt) over (partition by user_id order by dt)) < 3, '1', '0') flag
+from dws_trade_user_order_1d
+where dt>date_sub('2020-06-15', 7)
+) t1
+group by user_id
+) t2
+where finalflag like '%111%'
+;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
