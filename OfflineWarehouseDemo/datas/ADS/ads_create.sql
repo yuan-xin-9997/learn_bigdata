@@ -682,14 +682,419 @@ where finalflag like '%111%'
 
 
 
+-- 11.3 商品主题
+-- 11.3.1 最近30日各品牌复购率
+
+-- 需求说明如下
+-- 统计周期	统计粒度	指标	说明
+-- 最近30日	品牌	复购率	重复购买人数占购买人数比例
+-- 1）建表语句
+DROP TABLE IF EXISTS ads_repeat_purchase_by_tm;
+CREATE EXTERNAL TABLE ads_repeat_purchase_by_tm
+(
+    `dt`                STRING COMMENT '统计日期',
+    `recent_days`       BIGINT COMMENT '最近天数,30:最近30天',
+    `tm_id`             STRING COMMENT '品牌ID',
+    `tm_name`           STRING COMMENT '品牌名称',
+    `order_repeat_rate` DECIMAL(16, 2) COMMENT '复购率'
+) COMMENT '各品牌复购率统计'
+    ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+    LOCATION '/warehouse/gmall/ads/ads_repeat_purchase_by_tm/';
+-- 2）数据装载
+select dt,
+       recent_days,
+       tm_id,
+       tm_name,
+       order_repeat_rate
+from ads_repeat_purchase_by_tm;
+
+
+insert overwrite table ads_repeat_purchase_by_tm
+select * from ads_repeat_purchase_by_tm
+union
+select
+    '2020-06-14' dt,
+    30 recent_days,
+    tm_id, tm_name,
+   cast(sum(if(total_order_count_30d>1, 1, 0)) * 100/ count(*) as decimal(16, 2)) order_repeat_rate
+from (
+select
+    user_id,
+    tm_id,
+    tm_name,
+    sum(order_count_30d)  total_order_count_30d
+from dws_trade_user_sku_order_nd  -- 粒度：一个人下单一种SKU是一行
+where dt='2020-06-14'
+group by user_id,tm_id,tm_name  -- tm_name和tm_id是1对1的关系。统计出每个人下单每种品牌的次数，30天内
+) t1
+group by tm_id, tm_name
+;
+
+
+-- 11.3.2 各品牌商品下单统计
+-- 需求说明如下
+-- 统计周期	统计粒度	指标	说明
+-- 最近1、7、30日	品牌	订单数	略
+-- 最近1、7、30日	品牌	订单人数	略
+-- 1）建表语句
+DROP TABLE IF EXISTS ads_order_stats_by_tm;
+CREATE EXTERNAL TABLE ads_order_stats_by_tm
+(
+    `dt`                      STRING COMMENT '统计日期',
+    `recent_days`             BIGINT COMMENT '最近天数,1:最近1天,7:最近7天,30:最近30天',
+    `tm_id`                   STRING COMMENT '品牌ID',
+    `tm_name`                 STRING COMMENT '品牌名称',
+    `order_count`             BIGINT COMMENT '订单数',
+    `order_user_count`        BIGINT COMMENT '订单人数'
+) COMMENT '各品牌商品交易统计'
+    ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+    LOCATION '/warehouse/gmall/ads/ads_order_stats_by_tm/';
+-- 2）数据装载
+
+
+-- 求最近1天各品牌的下单人数和下单数
+insert overwrite table ads_order_stats_by_tm
+select * from  ads_order_stats_by_tm
+union
+select
+    '2020-06-14' dt,
+    1 recent_days,
+    tm_id,
+    tm_name,
+    sum(order_count_1d) order_count,
+    count(distinct user_id) order_user_count
+from dws_trade_user_sku_order_1d  -- 粒度：一个用户下单一个sku是一行
+where dt='2020-06-14'
+group by tm_id, tm_name
+    union all
+-- 求最近7、30天各品牌的下单人数和下单数
+-- 如果一条记录的order_count_30d>0，这条记录的order_count_7d不一定也>0
+select
+    '2020-06-14' dt,
+    recent_days,
+    tm_id,
+    tm_name,
+    sum(if(recent_days=7, order_count_7d, order_count_30d)) order_count,
+    -- 需要判断此人在最近7天是否下单过
+    --   特殊处理：如果一个品牌在最近7天没人买过，那么count(null)=null，需要在外层进行空值处理
+    nvl(count(distinct if(recent_days=7 and order_count_7d=0, null, user_id)), 0) order_user_count  from dws_trade_user_sku_order_nd  -- 粒度：一个用户下单一个sku是一行
+lateral view explode(array(7,30)) tmp as recent_days
+where dt='2020-06-14'
+group by tm_id, tm_name, recent_days
+    ;
+
+
+
+-- 11.3.3 各品类商品下单统计
+
+-- 需求说明如下
+-- 统计周期	统计粒度	指标	说明
+-- 最近1、7、30日	品类	订单数	略
+-- 最近1、7、30日	品类	订单人数	略
+-- 1）建表语句
+DROP TABLE IF EXISTS ads_order_stats_by_cate;
+CREATE EXTERNAL TABLE ads_order_stats_by_cate
+(
+    `dt`                      STRING COMMENT '统计日期',
+    `recent_days`             BIGINT COMMENT '最近天数,1:最近1天,7:最近7天,30:最近30天',
+    `category1_id`            STRING COMMENT '一级分类id',
+    `category1_name`          STRING COMMENT '一级分类名称',
+    `category2_id`            STRING COMMENT '二级分类id',
+    `category2_name`          STRING COMMENT '二级分类名称',
+    `category3_id`            STRING COMMENT '三级分类id',
+    `category3_name`          STRING COMMENT '三级分类名称',
+    `order_count`             BIGINT COMMENT '订单数',
+    `order_user_count`        BIGINT COMMENT '订单人数'
+) COMMENT '各分类商品交易统计'
+    ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+    LOCATION '/warehouse/gmall/ads/ads_order_stats_by_cate/';
+-- 2）数据装载
+insert overwrite table ads_order_stats_by_cate
+select * from  ads_order_stats_by_cate
+union
+-- 求最近1天各品类的下单人数和下单数
+select
+    '2020-06-14' dt,
+    1 recent_days,
+    category3_id,category3_name,category2_id,category2_name,category1_id,category1_name,
+    sum(order_count_1d) order_count,
+    count(distinct user_id) order_user_count
+from dws_trade_user_sku_order_1d  -- 粒度：一个用户下单一个sku是一行
+where dt='2020-06-14'
+group by category3_id,category3_name,category2_id,category2_name,category1_id,category1_name
+    union all
+-- 求最近7、30天各品类的下单人数和下单数
+-- 如果一条记录的order_count_30d>0，这条记录的order_count_7d不一定也>0
+select
+    '2020-06-14' dt,
+    recent_days,
+    category3_id,category3_name,category2_id,category2_name,category1_id,category1_name,
+    sum(if(recent_days=7, order_count_7d, order_count_30d)) order_count,
+    -- 需要判断此人在最近7天是否下单过
+    --   特殊处理：如果一个品牌在最近7天没人买过，那么count(null)=null，需要在外层进行空值处理
+    nvl(count(distinct if(recent_days=7 and order_count_7d=0, null, user_id)), 0) order_user_count  from dws_trade_user_sku_order_nd  -- 粒度：一个用户下单一个sku是一行
+lateral view explode(array(7,30)) tmp as recent_days
+where dt='2020-06-14'
+group by category3_id,category3_name,category2_id,category2_name,category1_id,category1_name, recent_days
+    ;
+
+
+-- 11.3.4 各分类商品购物车存量Top3
+
+-- 1）建表语句
+DROP TABLE IF EXISTS ads_sku_cart_num_top3_by_cate;
+CREATE EXTERNAL TABLE ads_sku_cart_num_top3_by_cate
+(
+    `dt`             STRING COMMENT '统计日期',
+    `category1_id`   STRING COMMENT '一级分类ID',
+    `category1_name` STRING COMMENT '一级分类名称',
+    `category2_id`   STRING COMMENT '二级分类ID',
+    `category2_name` STRING COMMENT '二级分类名称',
+    `category3_id`   STRING COMMENT '三级分类ID',
+    `category3_name` STRING COMMENT '三级分类名称',
+    `sku_id`         STRING COMMENT '商品id',
+    `sku_name`       STRING COMMENT '商品名称',
+    `cart_num`       BIGINT COMMENT '购物车中商品数量',
+    `rk`             BIGINT COMMENT '排名'
+) COMMENT '各分类商品购物车存量Top3'
+    ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+    LOCATION '/warehouse/gmall/ads/ads_sku_cart_num_top3_by_cate/';
+-- 2）数据装载
+insert overwrite table ads_sku_cart_num_top3_by_cate
+select * from ads_sku_cart_num_top3_by_cate
+union
+select dt,
+       category1_id,
+       category1_name,
+       category2_id,
+       category2_name,
+       category3_id,
+       category3_name,
+       sku_id,
+       sku_name,
+       cart_num,
+       rk
+from (
+select
+    '2020-06-14' dt,
+       category1_id,
+       category1_name,
+       category2_id,
+       category2_name,
+       category3_id,
+       category3_name,
+       sku_id,
+       sku_name,
+       cart_num,
+       -- 求这个sku，在其3级品类中的排名
+        row_number() over (partition by  category3_id order by cart_num desc) rk
+from (
+select sku_id,
+       sum(sku_num) cart_num
+from dwd_trade_cart_full
+where dt='2020-06-14'
+group by sku_id) t1
+left join (
+select id,
+       price,
+       sku_name,
+       sku_desc,
+       weight,
+       is_sale,
+       spu_id,
+       spu_name,
+       category3_id,
+       category3_name,
+       category2_id,
+       category2_name,
+       category1_id,
+       category1_name,
+       tm_id,
+       tm_name,
+       sku_attr_values,
+       sku_sale_attr_values,
+       create_time,
+       dt
+from dim_sku_full
+where dt='2020-06-14'
+) t2
+on t1.sku_id=t2.id
+) t3
+where rk <= 3;
 
 
 
 
+-- 11.3.5 各品牌商品收藏次数Top3
+
+-- 1）建表语句
+DROP TABLE IF EXISTS ads_sku_favor_count_top3_by_tm;
+CREATE EXTERNAL TABLE ads_sku_favor_count_top3_by_tm
+(
+    `dt`          STRING COMMENT '统计日期',
+    `tm_id`       STRING COMMENT '品牌id',
+    `tm_name`     STRING COMMENT '品牌名称',
+    `sku_id`      STRING COMMENT '商品id',
+    `sku_name`    STRING COMMENT '商品名称',
+    `favor_count` BIGINT COMMENT '被收藏次数',
+    `rk`          BIGINT COMMENT '排名'
+) COMMENT '各品牌商品收藏次数Top3'
+    ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+    LOCATION '/warehouse/gmall/ads/ads_sku_favor_count_top3_by_tm/';
+-- 2）数据装载
+insert overwrite table ads_sku_favor_count_top3_by_tm
+select * from ads_sku_favor_count_top3_by_tm
+union
+select dt,
+       tm_id,
+       tm_name,
+       sku_id,
+       sku_name,
+       favor_count,
+       rk
+from  (
+select
+    dt,
+       tm_id,
+       tm_name,
+       sku_id,
+       sku_name,
+       favor_add_count_1d favor_count,
+       row_number() over (partition by tm_id order by favor_add_count_1d desc) rk
+from dws_interaction_sku_favor_add_1d
+where dt='2020-06-14'
+) t1
+where rk<=3
+;
 
 
+-- 11.4 交易主题
+-- 11.4.1 下单到支付时间间隔平均值
+
+-- 具体要求：最近1日完成支付的订单的下单时间到支付时间的时间间隔的平均值。
+-- 1）建表语句
+DROP TABLE IF EXISTS ads_order_to_pay_interval_avg;
+CREATE EXTERNAL TABLE ads_order_to_pay_interval_avg
+(
+    `dt`                        STRING COMMENT '统计日期',
+    `order_to_pay_interval_avg` BIGINT COMMENT '下单到支付时间间隔平均值,单位为秒'
+) COMMENT '各品牌商品收藏次数Top3'
+    ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+    LOCATION '/warehouse/gmall/ads/ads_order_to_pay_interval_avg/';
+
+-- 2）数据装载
+/*
+想要指定的类型时：
+    a: 用构造器(x) 强行转换
+    b: cast(x as 类型)
+ */
+insert overwrite table ads_order_to_pay_interval_avg
+select * from ads_order_to_pay_interval_avg
+union
+select
+    '2020-06-14' dt,
+    bigint(avg(to_unix_timestamp(payment_time) - to_unix_timestamp(order_time))) order_to_pay_interval_avg
+from dwd_trade_trade_flow_acc  -- 分区：按照订单是否完成(确认收货)进行分区，未确认收货在9999-12-31分区，已确认收货的，按照收货日期分区
+-- 取最近1日，所有已经支付的订单的数据
+--        最近1日，所有支付的订单，可能确认收货了，在2020-06-14分区
+--        最近1日，所有支付的订单，未确认收货，在9999-12-31分区
+where (dt='9999-12-31' or dt='2020-06-14')
+and isnotnull(payment_time) -- 只要支付的订单，isnotnull(a) 等价于 a is not null
+;
 
 
+select to_unix_timestamp('2020-06-10 11:32:31');
 
 
+-- 11.4.2 各省份交易统计
+-- 需求说明如下
+-- 统计周期	统计粒度	指标	说明
+-- 最近1、7、30日	省份	订单数	略
+-- 最近1、7、30日	省份	订单金额	略
+-- 1）建表语句
+DROP TABLE IF EXISTS ads_order_by_province;
+CREATE EXTERNAL TABLE ads_order_by_province
+(
+    `dt`                 STRING COMMENT '统计日期',
+    `recent_days`        BIGINT COMMENT '最近天数,1:最近1天,7:最近7天,30:最近30天',
+    `province_id`        STRING COMMENT '省份ID',
+    `province_name`      STRING COMMENT '省份名称',
+    `area_code`          STRING COMMENT '地区编码',
+    `iso_code`           STRING COMMENT '国际标准地区编码',
+    `iso_code_3166_2`    STRING COMMENT '国际标准地区编码',
+    `order_count`        BIGINT COMMENT '订单数',
+    `order_total_amount` DECIMAL(16, 2) COMMENT '订单金额'
+) COMMENT '各地区订单统计'
+    ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+    LOCATION '/warehouse/gmall/ads/ads_order_by_province/';
+-- 2）数据装载
 
+insert overwrite table ads_order_by_province
+select * from ads_order_by_province
+union
+-- 省份最近1日的的订单统计
+select
+    '2020-06-14',
+    1 recent_days,
+    province_id,
+       province_name,
+       area_code,
+       iso_code,
+       iso_3166_2 iso_code_3166_2,
+       order_count_1d order_count,
+       order_original_amount_1d order_total_amount
+from dws_trade_province_order_1d  -- 1个省份是1行
+where dt='2020-06-14'
+union all
+-- 各省份最近7、30日的订单统计
+select
+    '2020-06-14',
+    recent_days,
+    province_id,
+       province_name,
+       area_code,
+       iso_code,
+       iso_3166_2 iso_code_3166_2,
+       max(if(recent_days=7, order_count_7d, order_count_30d)) order_count,
+       sum(if(recent_days=7, order_original_amount_7d, order_original_amount_30d)) order_total_amount
+from dws_trade_province_order_nd  -- 1个省份是1行
+lateral view explode(array(7,30)) tmp as recent_days
+where dt='2020-06-14'
+group by recent_days, province_id  -- 下面这些字段，都可以由province_id推断出
+         ,province_name,area_code,iso_code,iso_3166_2
+;
+
+
+-- 11.5 优惠券主题
+-- 11.5.1 优惠券使用统计
+
+-- 需求说明如下
+-- 最近1日	优惠券	使用次数	支付才算使用
+-- 最近1日	优惠券	使用人数	支付才算使用
+-- 1）建表语句
+DROP TABLE IF EXISTS ads_coupon_stats;
+CREATE EXTERNAL TABLE ads_coupon_stats
+(
+    `dt`              STRING COMMENT '统计日期',
+    `coupon_id`       STRING COMMENT '优惠券ID',
+    `coupon_name`     STRING COMMENT '优惠券名称',
+    `used_count`      BIGINT COMMENT '使用次数',
+    `used_user_count` BIGINT COMMENT '使用人数'
+) COMMENT '优惠券统计'
+    ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+    LOCATION '/warehouse/gmall/ads/ads_coupon_stats/';
+-- 2）数据装载
+insert overwrite table ads_coupon_stats
+select * from ads_coupon_stats
+union
+select
+    '2020-06-14' dt,
+    coupon_id,
+    coupon_name,
+    cast(sum(used_count_1d) as bigint),
+    cast(count(*) as bigint)
+from dws_tool_user_coupon_coupon_used_1d  -- 一个用户，使用一种coupon_id是一行
+where dt='2020-06-14'
+group by coupon_id,coupon_name;
+
+show tables in gmall like 'ads*';
