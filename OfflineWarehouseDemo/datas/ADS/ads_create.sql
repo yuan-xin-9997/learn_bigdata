@@ -232,6 +232,9 @@ CREATE EXTERNAL TABLE ads_user_change
 表格2：n行，b列
 表格1 笛卡尔积 表格2，结果：m+n行，a+b列
 */
+insert overwrite table ads_user_change
+select * from  ads_user_change
+union
 select
     '2020-06-14' dt,
 user_churn_count,
@@ -1098,3 +1101,7 @@ where dt='2020-06-14'
 group by coupon_id,coupon_name;
 
 show tables in gmall like 'ads*';
+
+
+-- 脚本处理
+--  sed -e 's/aaa/ddd/g' -e 's/bbb/eee/g' -e 's/`/\\`/g' a.txt
