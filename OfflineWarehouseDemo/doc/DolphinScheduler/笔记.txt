@@ -1,0 +1,81 @@
+调度工作流
+
+调度： 让flow在指定的时间，按照期望的规律进行执行。
+
+举例： 离线数仓，每日处理的脚本，可以组成一个流程。在每天的0：30等待昨日的数据已经生成，采集到了HDFS。
+		开始五层脚本的调度。
+		
+
+Ozzie(训象师):   CDH平台自带。
+		特点：  重量级(功能强大，使用复杂)
+				不易于安装。
+				
+Azakaban(哈利波特与阿兹卡班的囚徒) :    Linkdein(领英(微软收购)--脉脉(职场社交软件))  
+		特点：  全能。
+				轻量级(安装简单，使用简单)
+				稳健
+				
+		缺点：  需要自己编写flow的文件，之后上传到平台后才能使用。
+		
+		30%
+		
+
+Airflow：   
+			优点：  UI(用户接口)界面美观。颜值高
+			缺点：  python写的。 java程序员搞不明白。 后台有个报错，搞不定。
+			
+			15%
+			
+			
+
+DolphinScheduler:
+			优点：  全能。轻量级，功能强大，美观，不需要自己编写flow再上传，直接在webUI操作。
+					国产(社区活跃，文档中文)
+					
+			55%
+
+
+TaskCtl ???
+
+
+---------------------------------------------------------
+APIServer: 前台，接待用户请求  1G
+MasterServer: 负责分配任务     4G
+WorkerServer:  负责干活        2G
+LoggerServer:  打日志    1G
+AlertServer： 告警     1G
+
+--------------------------------
+16G：  
+
+hadoop102  6G 内存: 在hive客户端所在的节点，安装1 * WorkerServer，1* AlertServer
+hadoop103  5G 内存: 1 * MasterServer
+hadoop104  3G 内存： 1 * APIServer
+--------------------
+24G 
+hadoop102: 在hive客户端所在的节点，安装1 * WorkerServer
+hadoop103: 1 * MasterServer
+hadoop104： 1 * APIServer，1* AlertServer， 安装1 * WorkerServer
+
+-----------------
+32G
+hadoop102: 在hive客户端所在的节点，安装1 * WorkerServer，  1 * MasterServer
+hadoop103: 1 * MasterServer  安装1 * WorkerServer
+hadoop104： 1 * APIServer，1* AlertServer， 安装1 * WorkerServer 
+
+-----------------
+64G
+随便
+
+
+
+-----------------
+以走路为例。两个线程，好比两个人
+
+串行：你先走，我在走
+并行：我们一起走
+并发：你走，我不走。我走，你不走
+
+
+
+

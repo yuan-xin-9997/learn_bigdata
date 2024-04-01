@@ -202,7 +202,7 @@ from (select concat('step-', rn, ':', source_tmp)     source,
                    lead(page_id, 1, 'None') over (partition by session_id order by view_time) target_tmp,
                    row_number() over (partition by session_id order by view_time)             rn
             from dwd_traffic_page_view_inc -- 一次页面访问是一行
-            where dt = '2020-06-14' -- 按照访问日期分区;
+            where dt = '2020-06-14' -- 按照访问日期分区
            ) t1) t2
 group by source, target;
 
@@ -1105,3 +1105,38 @@ show tables in gmall like 'ads*';
 
 -- 脚本处理
 --  sed -e 's/aaa/ddd/g' -e 's/bbb/eee/g' -e 's/`/\\`/g' a.txt
+
+-- 清空表
+show tables like "ads*";
+insert overwrite table ads_coupon_stats
+select * from ads_coupon_stats where 1!=1;
+insert overwrite table ads_new_order_user_stats
+select * from ads_new_order_user_stats where 1!=1;
+insert overwrite table ads_order_by_province
+select * from ads_order_by_province where 1!=1;
+insert overwrite table ads_order_continuously_user_count
+select * from ads_order_continuously_user_count where 1!=1;
+insert overwrite table ads_order_stats_by_cate
+select * from ads_order_stats_by_cate where 1!=1;
+insert overwrite table ads_order_stats_by_tm
+select * from ads_order_stats_by_tm where 1!=1;
+insert overwrite table ads_order_to_pay_interval_avg
+select * from ads_order_to_pay_interval_avg where 1!=1;
+insert overwrite table ads_page_path
+select * from ads_page_path where 1!=1;
+insert overwrite table ads_repeat_purchase_by_tm
+select * from ads_repeat_purchase_by_tm where 1!=1;
+insert overwrite table ads_sku_cart_num_top3_by_cate
+select * from ads_sku_cart_num_top3_by_cate where 1!=1;
+insert overwrite table ads_sku_favor_count_top3_by_tm
+select * from ads_sku_favor_count_top3_by_tm where 1!=1;
+insert overwrite table ads_traffic_stats_by_channel
+select * from ads_traffic_stats_by_channel where 1!=1;
+insert overwrite table ads_user_action
+select * from ads_user_action where 1!=1;
+insert overwrite table ads_user_change
+select * from ads_user_change where 1!=1;
+insert overwrite table ads_user_retention
+select * from ads_user_retention where 1!=1;
+insert overwrite table ads_user_stats
+select * from ads_user_stats where 1!=1;
