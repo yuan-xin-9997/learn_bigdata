@@ -1,0 +1,21 @@
+
+
+-- INSERT INTO : 追加写(主键不能冲突)
+-- Duplicate entry '2020-06-14' for key 'PRIMARY'
+INSERT INTO `ads_user_change` VALUES('2020-06-14',3,4);
+
+-- INSERT UPDATE : 更新写，如果数据不存在(通过主键判断)，insert，存在就update
+-- 有幂等性   values(列名) ： 代表要读取即将插入的指定列名的列值
+INSERT INTO `ads_user_change`(dt,`user_churn_count`,`user_back_count`) VALUES('2020-06-14',5,6)
+ON DUPLICATE KEY UPDATE `user_churn_count`=VALUES(user_churn_count) , `user_back_count`=VALUES(user_back_count)
+
+
+-- REPLACE INTO : 类似hive中的insert overwrite,覆盖写
+-- 有幂等性(执行1次和执行N次的结果一样)
+REPLACE INTO `ads_user_change` VALUES('2020-06-14',3,4);
+
+
+-- 离线数仓： 在第二天，将第一天的数据计算得到的ADS层的数据导出到Mysql
+--  ADS的表： 是一张全量表，不是分区表。每一天，导出的数据是当前日期及当前日期之前的所有数据，
+-- 又因为当前日期之前的数据，已经在昨天导出到Mysql，当前插入到mysql一定会有主键冲突，选择具有幂等性
+-- 处理主键冲突的insert方式，推荐使用replace into
