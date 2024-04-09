@@ -1087,6 +1087,7 @@ CREATE EXTERNAL TABLE ads_coupon_stats
     ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
     LOCATION '/warehouse/gmall/ads/ads_coupon_stats/';
 -- 2）数据装载
+set hive.merge.sparkfiles=true;
 insert overwrite table ads_coupon_stats
 select * from ads_coupon_stats
 union

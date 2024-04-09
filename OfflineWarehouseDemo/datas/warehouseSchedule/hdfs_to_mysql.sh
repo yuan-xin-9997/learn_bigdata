@@ -1,4 +1,6 @@
 #! /bin/bash
+# hdfs_to_mysql.sh
+# ADS 导出数据到 MySQL，供可视化展示
 
 DATAX_HOME=/opt/module/datax
 

@@ -1,0 +1,57 @@
+{
+    "job": {
+        "content": [
+            {
+                "reader": {
+                    "name": "hdfsreader",
+                    "parameter": {
+                        "column": [
+                            "*"
+                        ],
+                        "defaultFS": "hdfs://hadoop102:8020",
+                        "encoding": "UTF-8",
+                        "fieldDelimiter": "\t",
+                        "fileType": "text",
+                        "nullFormat": "\\N",
+                        "path": "${exportdir}"
+                    }
+                },
+                "writer": {
+                    "name": "mysqlwriter",
+                    "parameter": {
+                        "column": [
+                            "dt",
+                            "recent_days",
+                            "channel",
+                            "uv_count",
+                            "avg_duration_sec",
+                            "avg_page_count",
+                            "sv_count",
+                            "bounce_rate"
+                        ],
+                        "connection": [
+                            {
+                                "jdbcUrl": "jdbc:mysql://hadoop102:3306/gmall_report?useUnicode=true&characterEncoding=utf-8",
+                                "table": [
+                                    "ads_traffic_stats_by_channel"
+                                ]
+                            }
+                        ],
+                        "password": "000000",
+                        "username": "root",
+                        "writeMode": "replace"
+                    }
+                }
+            }
+        ],
+        "setting": {
+            "errorLimit": {
+                "percentage": 0.02,
+                "record": 0
+            },
+            "speed": {
+                "channel": 3
+            }
+        }
+    }
+}

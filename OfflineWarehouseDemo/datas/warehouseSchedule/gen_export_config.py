@@ -6,14 +6,14 @@ import sys
 import MySQLdb
 
 #MySQL相关配置，需根据实际情况作出修改
-mysql_host = "hadoop104"
+mysql_host = "hadoop102"
 mysql_port = "3306"
 mysql_user = "root"
-mysql_passwd = "000000"
+mysql_passwd = "root"
 
 #HDFS NameNode相关配置，需根据实际情况作出修改
 hdfs_nn_host = "hadoop102"
-hdfs_nn_port = "9820"
+hdfs_nn_port = "8020"
 
 #生成配置文件的目标路径，可根据实际情况作出修改
 output_path = "/opt/module/datax/job/export"
