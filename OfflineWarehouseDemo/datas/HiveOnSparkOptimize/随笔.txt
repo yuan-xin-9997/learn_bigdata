@@ -1,0 +1,233 @@
+-- 简单的查询不提交Job，不经Spark引擎运算，走fetch task
+-- 不分组，不排序，没有窗口操作等等
+--     Fetch Operator ： 去HDFS拉数据
+explain
+
+    --dwd_trade_order_detail_inc    1 0000 0000
+select
+
+    count(*)
+from dwd_trade_order_detail_inc
+    where dt='2020-06-16';
+
+
+show  partitions dwd_trade_order_detail_inc;
+
+
+-- coupon_id的基数 = 3 (1,2,3)
+/*
+        reducer端聚合:
+                map端输入:  41.1 MiB
+                shuffle write ： 9.1 MiB
+
+        map端聚合:
+                shuffle write ： 3.1 KiB
+ */
+explain
+    select
+    coupon_id,
+    count(*)
+from dwd_trade_order_detail_inc
+where dt='2020-06-16'
+group by coupon_id;
+
+
+select 10000 0000 / 1024 / 1024 ;
+
+
+--启用map-side聚合
+set hive.map.aggr=true;
+--hash map占用map端内存的最大比例
+set hive.map.aggr.hash.percentmemory=0.5;
+
+-- 3.9G
+select 3900 / 256 ;
+
+--------------------------map join--------------------------------
+--启用map join自动转换
+-- 设置为true，自动判断当前是不是 大表 join 小表，只要小表的大小  < hive.auto.convert.join.noconditionaltask.size,
+-- 自动用map join实现
+set hive.auto.convert.join=false;
+--common join转map join小表阈值  10000000(B)
+set hive.auto.convert.join.noconditionaltask.size=1512000001;
+set hive.auto.convert.join.noconditionaltask.size=10000000;
+
+/*
+        现在是reduce join!
+ */
+explain select
+    fact.id,sku_id,sku_name
+from
+(
+    select
+        sku_id,id
+    from dwd_trade_order_detail_inc
+    where dt='2020-06-16'
+)fact
+left join
+(
+    select
+        id,sku_name
+    from dim_sku_full
+    where dt='2020-06-16'
+)dim
+on fact.sku_id=dim.id;
+
+/*
+        加载到内存后要用的大小:
+    rawDataSize (参考)        ,1512000000
+        HDFS的磁盘上的文件大小:
+    totalSize           ,120487323   114.9M
+
+ */
+
+ select 120487323 / 1024 / 1024 ;
+
+select  1512000000 > 10000000;
+
+desc formatted dim_sku_full partition (dt='2020-06-16');
+
+
+show create table dim_sku_full;
+
+
+-----------------------数据倾斜--------------------------
+set hive.map.aggr=false;
+
+
+explain select
+    province_id,
+    count(*)
+from dwd_trade_order_detail_inc
+where dt='2020-06-16'
+group by province_id;
+
+-- 抽样  https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Sampling
+-- 1: 99%
+select
+  province_id,num,
+       num / sum(num) over()
+from (
+         select province_id,
+                count(*) num
+         from (SELECT province_id
+               FROM dwd_trade_order_detail_inc
+                        TABLESAMPLE (100M)
+     ) t1
+group by province_id )
+  t2
+
+-------------------join的优化------------------------
+/*
+
+        如何解决 join 的数据倾斜。
+            a) 使用MapJoin，没有Reduce阶段，没有shuffle，自然没有数据倾斜。
+                    每个MapTask只处理一个切片，99%的MapTask的输入的数据量是一致的
+
+        既开启了MapJoin，又开启了skewjoin，执行计划优先选择 MapJoin。
+                skewjoin有提升，但是不明显。
+ */
+--启用skew join优化
+set hive.optimize.skewjoin=false;
+--触发skew join的阈值，若某个key的行数超过该参数值，则触发
+set hive.skewjoin.key=100000;
+
+set hive.auto.convert.join=true;
+
+
+explain
+select
+    *
+from
+(
+    select
+        *
+    from dwd_trade_order_detail_inc
+    where dt='2020-06-16'
+)fact
+join
+(
+    select
+        *
+    from dim_province_full
+    where dt='2020-06-16'
+)dim
+on fact.province_id=dim.id;
+
+
+-- CombineHiveInputFormat把输入目录中的所有文件合并成一个整体，以整体为大小去切片
+set hive.input.format;
+
+-- 256M
+set mapreduce.input.fileinputformat.split.maxsize;
+
+-- -1
+set mapreduce.job.reduces=-1;
+
+-- 如果让hive估算启动的reduceTask数，不会超过1009
+set hive.exec.reducers.max;
+
+set hive.exec.reducers.bytes.per.reducer;
+
+explain
+    select
+    coupon_id,
+    count(*)
+from dwd_trade_order_detail_inc
+where dt='2020-06-16'
+group by coupon_id;
+
+-- 1272.65625
+
+-- 66.40625
+select  (8500000000 / 256000000  ) * 2;
+
+-- DIM层脚本   dim_sku_full  No stats ods_sku_xxx ,No stats  ods_spu_info
+-- ODS层，是用Load 导入，不会统计 ods层表的 信息，执行 dim层导入时，  select from  ods_xxx
+
+-- 估算reduce并行度时，使用靠谱的信息取估算
+--执行DML语句时，收集表级别的统计信息
+set hive.stats.autogather=true;
+--执行DML语句时，收集字段级别的统计信息
+set hive.stats.column.autogather=true;
+--计算Reduce并行度时，从上游Operator统计信息获得输入数据量
+set hive.spark.use.op.stats=true;
+--计算Reduce并行度时，使用列级别的统计信息估算输入数据量
+set hive.stats.fetch.column.stats=true;
+
+-----------------------
+-- 100w
+select count(*) from dim_sku_full;
+
+set hive.cbo.enable=false;
+--  (dwd_trade_order_detail_inc  join  dim_province_full )  join  dim_sku_full
+
+
+--  (dwd_trade_order_detail_inc  join  dim_sku_full )  join  dim_province_full
+
+
+explain select
+    *
+from
+(
+    select
+        *
+    from dwd_trade_order_detail_inc
+    where dt='2020-06-16'
+)fact
+join
+(
+    select
+        *
+    from dim_sku_full
+    where dt='2020-06-16'
+)sku
+on fact.sku_id=sku.id
+join
+(
+    select
+        *
+    from dim_province_full
+    where dt='2020-06-16'
+)dim
+on fact.province_id=dim.id;
