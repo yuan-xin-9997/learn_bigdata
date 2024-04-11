@@ -1,0 +1,3 @@
+测试：git@gitee.com:atguigutest/project2.git
+
+数仓sql: git@gitee.com:atguigutest/sz220309warehouse.git

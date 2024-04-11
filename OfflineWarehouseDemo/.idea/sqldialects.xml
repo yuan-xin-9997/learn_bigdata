@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="SqlDialectMappings">
+    <file url="file://$PROJECT_DIR$/datas/ADS/ads_create.sql" dialect="HiveQL" />
+    <file url="file://$PROJECT_DIR$/datas/DIM/dim_full_create.sql" dialect="HiveQL" />
+    <file url="file://$PROJECT_DIR$/datas/DWD/dwd_create.sql" dialect="HiveQL" />
+    <file url="file://$PROJECT_DIR$/datas/DWS/dws_create_1.sql" dialect="HiveQL" />
+    <file url="file://$PROJECT_DIR$/datas/DWS/dws_create_1d.sql" dialect="HiveQL" />
+    <file url="file://$PROJECT_DIR$/datas/DWS/dws_create_nd.sql" dialect="HiveQL" />
+    <file url="file://$PROJECT_DIR$/datas/DWS/dws_create_td.sql" dialect="HiveQL" />
+    <file url="file://$PROJECT_DIR$/datas/ODS/ods_business_create.sql" dialect="HiveQL" />
+    <file url="file://$PROJECT_DIR$/datas/ODS/ods_full_bussiness_activity_info_full.sql" dialect="HiveQL" />
+    <file url="file://$PROJECT_DIR$/datas/ODS/ods_inc_business_coupon_use_inc.sql" dialect="HiveQL" />
+    <file url="file://$PROJECT_DIR$/datas/ODS/ods_log_create.sql" dialect="HiveQL" />
+    <file url="file://$PROJECT_DIR$/datas/sz220309warehouse/createTableSql/ods.sql" dialect="HiveQL" />
+    <file url="file://$PROJECT_DIR$/datas/warehouseSchedule/mysql_table_create.sql" dialect="MariaDB" />
+    <file url="file://$PROJECT_DIR$/doc/SQL执行顺序.sql" dialect="HiveQL" />
+  </component>
+</project>
