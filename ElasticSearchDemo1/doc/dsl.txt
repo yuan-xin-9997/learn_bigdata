@@ -1,0 +1,664 @@
+GET .kibana_1/_mapping
+
+GET .kibana_1/_alias
+
+PUT stu
+{
+  "mappings": {
+    "properties": {
+      "id": {
+        "type": "keyword"
+      },
+      "name": {
+        "type": "text"
+      },
+      "hobby": {
+        "properties": {
+          "name": {
+            "type": "text"
+          },
+          "years":{
+            "type": "integer"
+          }
+        }
+      }
+    }
+  }
+}
+#自动创建  直接向一个不存在的Index插入数据，在插入数据时，系统根据数据的类型，自动推断mapping，自动创建mapping
+POST /index3/_doc/1
+{
+  "name":"jack",
+  "age": 20
+}
+
+GET stu
+GET stu1/_search
+POST stu/_doc/1
+{
+  "id":"1001",
+  "name":"jack",
+  "hobby":{
+    "name":"篮球",
+    "years": 3
+  }
+}
+
+HEAD stu1
+
+POST /stu1/1
+{
+  "name":"jack",
+  "age": 30
+}
+
+DELETE stu1
+
+PUT /stu/_mapping
+{
+  "properties" : {
+    "sex":{
+      "type":"keyword"
+    }
+  }
+}
+
+PUT stu1
+{
+  "mappings": {
+    "properties": {
+      "stuid": {
+        "type": "keyword"
+      },
+      "name": {
+        "type": "text"
+      },
+      "hobby": {
+        "properties": {
+          "name": {
+            "type": "text"
+          },
+          "years":{
+            "type": "integer"
+          }
+        }
+      }
+    }
+  }
+}
+
+POST _reindex
+{
+  "source": {
+    "index": "stu",
+    "_source": ["id", "name", "hobby", "sex"]
+  },
+  "dest": {
+    "index": "stu1"
+  }
+}
+GET stu1
+
+GET stu/_doc/1
+
+
+POST /stu1/_doc/2
+{
+  "id": "1002",
+  "name":"jack",
+  "hobby":[
+      {
+        "name" : "跳",
+        "years" : 3
+      },
+      {
+        "name" : "rap",
+        "years" : 3
+      }
+    ]
+}
+GET stu1/_search
+
+PUT /stu1/_doc/3
+{
+  "id": "1002",
+  "name":"jack1",
+  "hobby":[
+      {
+        "name" : "跳",
+        "years" : 3
+      },
+      {
+        "name" : "rap",
+        "years" : 3
+      }
+    ]
+}
+
+GET stu1
+
+POST /stu1/_doc
+{
+  "id": "1002",
+  "name":"jack",
+  "hobby":[
+      {
+        "name" : "跳",
+        "years" : 3
+      },
+      {
+        "name" : "rap",
+        "years" : 3
+      }
+    ]
+}
+
+
+GET stu1/_search
+
+PUT /stu1/_doc
+{
+  "id": "1005",
+  "name":"ross",
+  "hobby":[
+      {
+        "name" : "爬",
+        "years" : 3
+      },
+      {
+        "name" : "rap",
+        "years" : 3
+      }
+    ]
+}
+
+POST /stu1/_doc/1
+{
+  "id": "1002",
+  "name":"jack"
+
+}
+
+GET stu1/_doc/2
+
+#增量修改，只修改指定的列
+POST /stu1/_update/2
+{
+  "doc":{
+    "hobby":[
+      {
+        "name" : "跳",
+        "years" : 5
+      }
+    ]
+  }
+}
+
+GET stu1/_search
+HEAD /stu1/_doc/1
+HEAD /stu1/_doc/s-Wd5I4B50doyAUvAO7L
+
+DELETE /stu1/_doc/1
+
+
+GET /_analyze
+{
+  "text": "i am a teacher!"
+}
+
+# 汉语按照字切分
+GET /_analyze
+{
+  "text":"我是中国人"
+}
+
+
+#ik_smart：  智能分词。切分的所有单词的总字数等于词的总字数，即输入总字数=输出总字数
+GET /_analyze
+{
+  "text":"我是中国人",
+  "analyzer": "ik_smart"
+}
+
+
+#ik_max_word： 最大化分词。 输入总字数 <= 输出总字数
+GET /_analyze
+{
+  "text":"我是中国人",
+  "analyzer": "ik_max_word"
+}
+
+#没有NLP(自然语言处理，没有人的情感，听不懂人话)功能
+GET /_analyze
+{
+  "text":"我喜欢洗屁股眼子",
+  "analyzer": "ik_max_word"
+}
+
+
+
+####################################
+数据准备
+4.1.1 创建测试用例表
+#建表
+PUT /test
+{
+    "mappings" : {
+        "properties" : {
+          "empid" : {
+            "type" : "long"
+          },
+          "age" : {
+            "type" : "long"
+          },
+          "balance" : {
+            "type" : "double"
+          },
+          "name" : {
+            "type" : "text",
+            "fields" : {
+              "keyword" : {
+                "type" : "keyword",
+                "ignore_above" : 256
+              }
+            }
+          },
+           "gender" : {
+            "type" : "text",
+            "fields" : {
+              "keyword" : {
+                "type" : "keyword",
+                "ignore_above" : 256
+              }
+            }
+          },
+          "hobby" : {
+            "type" : "text",
+            "analyzer":"ik_max_word",
+            "fields" : {
+              "keyword" : {
+                "type" : "keyword",
+                "ignore_above" : 256
+              }
+            }
+          }
+        }
+      }
+  }
+
+POST index1/_doc/1
+{
+  "name":"jack"
+}
+GET index1
+
+#导入数据：
+POST /test/_bulk
+{"index":{"_id":"1"}}
+{"empid":1001,"age":20,"balance":2000,"name":"李三","gender":"男","hobby":"吃饭睡觉"}
+{"index":{"_id":"2"}}
+{"empid":1002,"age":30,"balance":2600,"name":"李小三","gender":"男","hobby":"吃粑粑睡觉"}
+{"index":{"_id":"3"}}
+{"empid":1003,"age":35,"balance":2900,"name":"张伟","gender":"女","hobby":"吃,睡觉"}
+{"index":{"_id":"4"}}
+{"empid":1004,"age":40,"balance":2600,"name":"张伟大","gender":"男","hobby":"打篮球睡觉"}
+{"index":{"_id":"5"}}
+{"empid":1005,"age":23,"balance":2900,"name":"大张伟","gender":"女","hobby":"打乒乓球睡觉"}
+{"index":{"_id":"6"}}
+{"empid":1006,"age":26,"balance":2700,"name":"张大喂","gender":"男","hobby":"打排球睡觉"}
+{"index":{"_id":"7"}}
+{"empid":1007,"age":29,"balance":3000,"name":"王五","gender":"女","hobby":"打牌睡觉"}
+{"index":{"_id":"8"}}
+{"empid":1008,"age":28,"balance":3000,"name":"王武","gender":"男","hobby":"打桥牌"}
+{"index":{"_id":"9"}}
+{"empid":1009,"age":32,"balance":32000,"name":"王小五","gender":"男","hobby":"喝酒,吃烧烤"}
+{"index":{"_id":"10"}}
+{"empid":1010,"age":37,"balance":3600,"name":"赵六","gender":"男","hobby":"吃饭喝酒"}
+{"index":{"_id":"11"}}
+{"empid":1011,"age":39,"balance":3500,"name":"张小燕","gender":"女","hobby":"逛街,购物,买"}
+{"index":{"_id":"12"}}
+{"empid":1012,"age":42,"balance":3500,"name":"李三","gender":"男","hobby":"逛酒吧,购物"}
+{"index":{"_id":"13"}}
+{"empid":1013,"age":42,"balance":3400,"name":"李球","gender":"男","hobby":"体育场,购物"}
+{"index":{"_id":"14"}}
+{"empid":1014,"age":22,"balance":3400,"name":"李健身","gender":"男","hobby":"体育场,购物"}
+{"index":{"_id":"15"}}
+{"empid":1015,"age":22,"balance":3400,"name":"Nick","gender":"男","hobby":"坐飞机,购物"}
+
+GET test/_search
+
+
+
+查询所有员工信息，并且按照年龄降序排序:
+#第一种: REST   ； GET  /index/_search?参数1=值1&参数2=值2
+#全表查询，按照年龄降序排序
+GET test/_search?q=*&sort=age:desc
+
+GET test/_search
+{
+  "query": {
+    "match_all": {}
+  },
+  "sort": [
+    {
+      "age": {
+        "order": "desc"
+      }
+    },
+    {
+      "balance": {"order": "desc"}
+    }
+  ],
+  "from": 0,
+  "size": 5,
+  "_source": ["empid","age","balance"]
+}
+
+
+GET /test/_search
+{
+  "query": {
+    "match": {
+      "hobby": "吃饭睡觉"
+    }
+  }
+}
+
+GET /_analyze
+{
+  "text":"吃饭睡觉",
+  "analyzer": "ik_max_word"
+}
+
+
+GET /test/_search
+{
+  "query": {
+    "match": {
+      "balance": 2000
+    }
+  }
+}
+
+GET /test/_search
+{
+  "query": {
+    "term": {
+      "balance": 2000
+    }
+  }
+}
+
+GET /test/_search
+{
+  "query": {
+    "match": {
+      "hobby.keyword": "吃饭睡觉"
+    }
+  }
+}
+
+GET /test/_search
+{
+  "query": {
+    "match_phrase": {
+      "hobby": "吃饭睡觉"
+    }
+  }
+}
+
+GET /test/_search
+{
+  "query": {
+   "multi_match": {
+     "query": "球",
+     "fields": ["name","hobby"]
+   }
+  }
+}
+
+
+GET /test/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "term": {
+            "gender": {
+              "value": "男"
+            }
+          }
+        },
+        {
+          "match": {
+            "hobby": "购物"
+          }
+        }
+      ]
+    }
+  }
+}
+
+
+GET /test/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "term": {
+            "gender": {
+              "value": "男"
+            }
+          }
+        },
+        {
+          "match": {
+            "hobby": "购物"
+          }
+        }
+      ],
+      "must_not": [
+        {
+          "match": {
+            "hobby": "酒吧"
+          }
+        }
+      ]
+    }
+  }
+}
+
+GET /test/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "term": {
+            "gender": {
+              "value": "男"
+            }
+          }
+        },
+        {
+          "match": {
+            "hobby": "购物"
+          }
+        }
+      ],
+      "must_not": [
+        {
+          "match": {
+            "hobby": "酒吧"
+          }
+        }
+      ],
+      "should": [
+        {
+          "range": {
+            "age": {
+              "gte": 20,
+              "lte": 30
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
+GET /test/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "term": {
+            "gender": {
+              "value": "男"
+            }
+          }
+        },
+        {
+          "match": {
+            "hobby": "购物"
+          }
+        }
+      ],
+      "must_not": [
+        {
+          "match": {
+            "hobby": "酒吧"
+          }
+        }
+      ],
+      "should": [
+        {
+          "range": {
+            "age": {
+              "gte": 20,
+              "lte": 30
+            }
+          }
+        }
+      ],
+      "filter": {
+        "range": {
+          "age": {
+            "lt": 40
+          }
+        }
+      }
+    }
+  }
+}
+
+
+GET test/_search
+{
+  "query": {
+    "fuzzy": {
+      "name": "Dick"
+    }
+  }
+}
+
+
+GET /test/_search
+{
+  "aggs": {
+    "gendercount": {
+      "terms": {
+        "field": "gender.keyword",
+        "size": 10
+      }
+    }
+  }
+}
+
+
+
+GET /test/_search
+{
+  "query": {
+    "match": {
+      "hobby": "购物"
+    }
+  },
+  "aggs": {
+    "gendercount": {
+      "terms": {
+        "field": "gender.keyword",
+        "size": 2
+      }
+    }
+  }
+}
+
+
+GET /test/_search
+{
+  "query": {
+    "match": {
+      "hobby": "购物"
+    }
+  },
+  "aggs": {
+    "gendercount": {
+      "terms": {
+        "field": "gender.keyword",
+        "size": 2
+      }
+    },
+    "avgage":{
+      "avg": {
+        "field": "age"
+      }
+    }
+  }
+}
+
+
+GET test/_search
+{
+  "query": {
+
+  }
+}
+
+GET /test/_search
+{
+  "query": {
+    "match": {
+      "hobby": "购物"
+    }
+  },
+  "aggs": {
+    "gendercount": {
+      "terms": {
+        "field": "gender.keyword",
+        "size": 2
+      },
+      "aggs": {
+        "avgage": {
+          "avg": {
+            "field": "age"
+          }
+        }
+      }
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
