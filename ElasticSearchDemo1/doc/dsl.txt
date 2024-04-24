@@ -651,6 +651,147 @@ GET /test/_search
     }
   }
 }
+GET _alias
+GET _cat/aliases?v
+GET movie_index/_alias
+GET .kibana_1/_alias
+
+PUT movie_index
+{
+  "aliases": {
+    "movie1": {},
+    "movie2": {}
+  },
+  "mappings": {
+      "properties": {
+        "id":{
+          "type": "long"
+        },
+        "name":{
+          "type": "text",
+          "analyzer": "ik_smart"
+        }
+      }
+  }
+}
+
+POST movie1/_doc/1
+{
+  "name":"<猫和老鼠>"
+}
+GET movie2/_search
+
+
+POST _aliases
+{
+  "actions": [
+    {
+      "add": {
+        "index": "movie_index",
+        "alias": "movie3"
+      }
+    }
+  ]
+}
+
+POST _aliases
+{
+       {
+      "remove": {
+        "index": "movie_index",
+        "alias": "movie3"
+      }
+    }
+  ]
+}
+
+
+
+
+
+
+POST _aliases
+{
+  "actions": [
+    {
+      "add": {
+        "index": "movie_index",
+        "alias": "movie4"
+      }
+    },
+    {
+      "remove": {
+        "index": "movie_index",
+        "alias": "movie2"
+      }
+    }
+  ]
+}
+
+GET _cat/aliases
+
+POST _aliases
+{
+  "actions": [
+    {
+      "add": {
+        "index": "test",
+        "alias": "manindex",
+        "filter": {
+          "term": {
+            "gender": "男"
+          }
+        }
+      }
+    }
+  ]
+}
+GET manindex
+
+
+GET _cat/templates?v
+
+GET _template/template_movie
+
+
+PUT _template/template_movie
+{
+  "index_patterns": ["movie*"],
+  "aliases" : {
+    "{index}-query": {},
+    "movie-query":{}
+  },
+  "mappings": {
+      "properties": {
+        "id": {
+          "type": "keyword"
+        },
+        "movie_name": {
+          "type": "text",
+          "analyzer": "ik_smart"
+        }
+      }
+    }
+}
+
+
+POST /movie240424/_doc/1
+{
+"price":30}
+
+
+GET movie240424
+
+DELETE _template/template_movie
+
+
+
+
+
+
+
+
+
 
 
 
