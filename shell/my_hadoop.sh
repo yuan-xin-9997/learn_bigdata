@@ -3,9 +3,12 @@
 case $1 in
 "start")
 	# 启动HDFS
+	for host in `cat ~/bin/hosts`
+	do
 	ssh hadoop102 ${HADOOP_HOME}/sbin/start-dfs.sh
 	# 启动YARN
 	ssh hadoop103 ${HADOOP_HOME}/sbin/start-yarn.sh
+	done
 	# 启动历史服务器
 	mapred --daemon start historyserver
 	;;
