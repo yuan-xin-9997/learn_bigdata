@@ -1,3 +1,5 @@
+#Bin_HOME
+export PATH=$PATH:/home/atguigu/bin
 #JAVA_HOME
 export JAVA_HOME=/opt/module/java
 export PATH=$PATH:$JAVA_HOME/bin
