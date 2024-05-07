@@ -1,51 +1,18 @@
-import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.streaming.{Seconds, StreamingContext}
+package org.atguigu.sparkstreaming.exactlyonce
+
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.spark.streaming.dstream.{DStream, InputDStream}
-import org.apache.spark.streaming.kafka010._
-import org.apache.spark.streaming.kafka010.LocationStrategies.PreferConsistent
 import org.apache.spark.streaming.kafka010.ConsumerStrategies.Subscribe
+import org.apache.spark.streaming.kafka010.LocationStrategies.PreferConsistent
+import org.apache.spark.streaming.kafka010._
+import org.apache.spark.streaming.{Seconds, StreamingContext}
+import org.apache.spark.{SparkConf, SparkContext}
 
 /*
-* 案例：消费Kafka的数据，Word Count Demo
-*
-* 编程入口（上下文Context）和编程模型
-* 编程入口：
-*   SparkCore：SparkContext
-*   SparkSQL：SparkSession（内置SparkContext）
-*   SparkStreaming：StreamingContext（内置SparkContext）
-*
-* 编程模型：
-*   SparkCore：RDD
-*   SparkSQL：DataFrame、DataSet
-*   SparkStreaming：DStream
-*
-* StreamingContext：编程的核心入口。
-*   用来从多种数据源创建
-*   使用步骤：
-*     1.创建StreamingContext
-*     2. 从StreamingContext中获取DStream
-*     3. 调用DStream的算子（高度抽象原语）计算
-*     4. 以上3步都是懒加载，什么时候开始真正运算
-*       启动App
-*       StreamingContext.start()
-*       停止
-*       StreamingContext.stop()
-*       流式计算：
-*         启动后，一定24h不停运算
-*         StreamingContext.awaitTermination() 等待发停止信号 或出现异常终止
-*
-* --------------------------------
-* 参考官网：https://spark.apache.org/docs/latest/streaming-kafka-0-10-integration.html
-* 如果消费的是Kafka主题中的数据，这个主题有几个分区，消费后封装的RDD，就有几个Partition
-*   也可以对RDD重分区，repartition
-*   The Spark Streaming integration for Kafka 0.10 provides simple parallelism, 1:1 correspondence between Kafka
-*   partitions and Spark partitions, and access to offsets and metadata. However, because the newer
-*   integration uses the new Kafka consumer API instead of the simple API, there are notable differences in usage.
 *
 * */
-object WordCountDemo1 {
+object AtMostOnceDemo {
   def main(args: Array[String]): Unit = {
     // 创建 streamingContext 方式1
     // Create a StreamingContext by providing the details necessary for creating a new SparkContext.
@@ -99,7 +66,8 @@ object WordCountDemo1 {
       "value.deserializer" -> classOf[StringDeserializer],
       "group.id" -> "20240506",
       "auto.offset.reset" -> "latest",
-      "enable.auto.commit" -> (true: java.lang.Boolean)
+      "enable.auto.commit" -> (true: java.lang.Boolean),
+      "auto.commit.interval.ms"->"500" // 自动提交的时间间隔，每间隔多久提交一次
     )
 
     // 要消费的主题：理论上允许消费多种主题的数据。但是一般操作时，只写一个主题
@@ -140,18 +108,23 @@ object WordCountDemo1 {
       Subscribe[String, String](topics, kafkaParams)
     )
 
-    // 只取V
-    val ds1: DStream[String] = ds.map(record => record.value())
-
-    // 分割+压平，ds2中的一个string是一个单词
-    val ds2: DStream[String] = ds1.flatMap(line => line.split(" "))
-
-    // word count
-    val ds3: DStream[(String, Int)] = ds2.map(word => (word, 1)).reduceByKey(_ + _)
+//    // 只取V
+//    val ds1: DStream[String] = ds.map(record => record.value())
+//
+//    // 分割+压平，ds2中的一个string是一个单词
+//    val ds2: DStream[String] = ds1.flatMap(line => line.split(" "))
+//
+//    // word count
+//    val ds3: DStream[(String, Int)] = ds2.map(word => (word, 1)).reduceByKey(_ + _)
 
     // 输出：在屏幕打印
     //   print() 默认打印10行
-    ds3.print(1000)
+    ds.map(record=>{
+      if(record.value().equals("B")){
+        throw new RuntimeException("程序异常")
+      }
+      record.value()
+    }).print(1000)
 
     // 启动APP
     streamingContext.start()
