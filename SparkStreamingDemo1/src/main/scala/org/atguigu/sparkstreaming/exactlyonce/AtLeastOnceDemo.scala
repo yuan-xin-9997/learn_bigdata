@@ -10,13 +10,31 @@ import org.apache.spark.streaming.{Seconds, StreamingContext}
 import org.apache.spark.{SparkConf, SparkContext}
 
 /*
-* at most once 最多消费一次
+* at most once 最少消费一次
 * 丢失数据的原因：在输出之前，已经提交offset，一旦出现故障，只会从上次提交的位置往后消费，造成漏消费数据
 * 解决方案：
 *   1. 取消自动提交offset，改为手动提交
 *   2. 在消费成功之后，再提交
+* --------------------------------
+* 写的代码，哪些在Driver端运行，哪些在Executor端运行
+* java.lang.IllegalArgumentException: requirement failed: No output operations registered, so nothing to execute
+* ----------------------------------
+* OffsetRange(topic: 'topicA', partition: 0, range: [86 -> 86])
+*   一个OffsetRange代表消费的一个分区一个主体，当前批次拉取到的起始和终止offset
+*   关注 val untilOffset: Long
+* --------------------------------------------
+* local[*] ：本地模式以多线程模你分布式计算。
+*   Executor的线程统一命名为：Executor task launch worker for task id
+*   只要不是这个线程名，都是在Driver端运行
+* -------------------------------------------
+* 如何区分代码在Driver端还是在Executor端运行？
+*   1. 如果是DStream普通算子（RDD中也有的同名算子），如map、filter等都是在Executor端运行
+*   2 特殊算子
+*     transform和foreachRDD 只有RDD.算子(xxx)   xxx是在Executor端运行，其余都是Driver端运行
+* ---------------------------------------------
+* 结论：偏移量offset是在Driver端获取，在Driver端提交
 * */
-object AtMostOnceDemo {
+object AtLeastOnceDemo {
   def main(args: Array[String]): Unit = {
     // 创建 streamingContext 方式1
     // Create a StreamingContext by providing the details necessary for creating a new SparkContext.
@@ -70,8 +88,8 @@ object AtMostOnceDemo {
       "value.deserializer" -> classOf[StringDeserializer],
       "group.id" -> "20240506",
       "auto.offset.reset" -> "latest",
-      "enable.auto.commit" -> (true: java.lang.Boolean),
-      "auto.commit.interval.ms"->"500" // 自动提交的时间间隔，每间隔多久提交一次
+      "enable.auto.commit" -> (false: java.lang.Boolean),  // 自动提交
+//      "auto.commit.interval.ms"->"500" // 自动提交的时间间隔，每间隔多久提交一次
     )
 
     // 要消费的主题：理论上允许消费多种主题的数据。但是一般操作时，只写一个主题
@@ -101,8 +119,6 @@ object AtMostOnceDemo {
         ): InputDStream[ConsumerRecord[K, V]] = {
         val ppc = new DefaultPerPartitionConfig(ssc.sparkContext.getConf)
         createDirectStream[K, V](ssc, locationStrategy, consumerStrategy, ppc)
-    *
-    *
     * ConsumerRecord[K, V] 从kafka消费到的一条数据，一般只获取V
     * ProduceRecord[K, V] V封装data，K封装meta data（比如partition=0），主要用于分区等
     * */
@@ -111,6 +127,22 @@ object AtMostOnceDemo {
       PreferConsistent,
       Subscribe[String, String](topics, kafkaParams)
     )
+
+    // 获取偏移量offset
+    var ranges: Array[OffsetRange] = null  // 在Driver端
+    println("a:"+Thread.currentThread().getName())
+    val ds1: DStream[ConsumerRecord[String, String]] = ds.transform(rdd => { // 在Driver端 JobGenerator
+      println("b:"+Thread.currentThread().getName())
+      // 偏移量
+      ranges = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
+//      for (elem <- ranges) {
+//        println(elem)
+//      }
+      ranges.foreach(
+        println(_)
+      )
+      rdd
+    })
 
 //    // 只取V
 //    val ds1: DStream[String] = ds.map(record => record.value())
@@ -123,13 +155,26 @@ object AtMostOnceDemo {
 
     // 输出：在屏幕打印
     //   print() 默认打印10行
-    ds.map(record=>{
+    ds1.map(record=>{
+      println("c:"+Thread.currentThread().getName())
       Thread.sleep(500)
       if(record.value().equals("B")){
         throw new RuntimeException("程序异常")
       }
       record.value()
-    }).print(1000)
+    }).foreachRDD(rdd=>{
+      println("d:"+Thread.currentThread().getName())
+      // 输出
+      rdd.foreach(word=>println("e:"+Thread.currentThread().getName() + ":" + word))   //rdd.xxx 里面的在Executor端执行
+
+      // 手动提交offset
+      ds.asInstanceOf[CanCommitOffsets].commitAsync(ranges)
+    })//.print(1000)
+
+    // 不能直接暴露在Driver的main方法中，而应该在输出Operation中输出之后调用
+    // 手动提交offset
+    // 在Driver端运行
+    //ds.asInstanceOf[CanCommitOffsets].commitAsync(ranges)
 
     // 启动APP
     streamingContext.start()

@@ -10,13 +10,13 @@ import org.apache.spark.streaming.{Seconds, StreamingContext}
 import org.apache.spark.{SparkConf, SparkContext}
 
 /*
-* at most once 最多消费一次
-* 丢失数据的原因：在输出之前，已经提交offset，一旦出现故障，只会从上次提交的位置往后消费，造成漏消费数据
-* 解决方案：
-*   1. 取消自动提交offset，改为手动提交
-*   2. 在消费成功之后，再提交
+* 2024-05-08 21:15:20      ERROR (org.apache.spark.streaming.scheduler.JobScheduler:logError) - Error generating jobs for time 1715174120000 ms
+java.lang.ClassCastException: org.apache.spark.rdd.MapPartitionsRDD cannot be cast to org.apache.spark.streaming.kafka010.HasOffsetRanges
+* 只有初始的DS的才能调用transform和foreachRDD去获取偏移量
+* 因为只有初始的DS才是DirectKafkaInputStream，里面封装的才是KafkaRDD
+* 只有KafkaRDD才能asInstanceOf[HasOffsetRanges]
 * */
-object AtMostOnceDemo {
+object GetOffsetsDemo {
   def main(args: Array[String]): Unit = {
     // 创建 streamingContext 方式1
     // Create a StreamingContext by providing the details necessary for creating a new SparkContext.
@@ -70,8 +70,8 @@ object AtMostOnceDemo {
       "value.deserializer" -> classOf[StringDeserializer],
       "group.id" -> "20240506",
       "auto.offset.reset" -> "latest",
-      "enable.auto.commit" -> (true: java.lang.Boolean),
-      "auto.commit.interval.ms"->"500" // 自动提交的时间间隔，每间隔多久提交一次
+      "enable.auto.commit" -> (false: java.lang.Boolean),  // 自动提交
+//      "auto.commit.interval.ms"->"500" // 自动提交的时间间隔，每间隔多久提交一次
     )
 
     // 要消费的主题：理论上允许消费多种主题的数据。但是一般操作时，只写一个主题
@@ -101,35 +101,52 @@ object AtMostOnceDemo {
         ): InputDStream[ConsumerRecord[K, V]] = {
         val ppc = new DefaultPerPartitionConfig(ssc.sparkContext.getConf)
         createDirectStream[K, V](ssc, locationStrategy, consumerStrategy, ppc)
-    *
-    *
     * ConsumerRecord[K, V] 从kafka消费到的一条数据，一般只获取V
     * ProduceRecord[K, V] V封装data，K封装meta data（比如partition=0），主要用于分区等
     * */
+    // ds: DirectKafkaInputDStream 会每10s采集到的数据封装为KafkaRDD
     val ds: InputDStream[ConsumerRecord[String, String]] = KafkaUtils.createDirectStream[String, String](
       streamingContext,
       PreferConsistent,
       Subscribe[String, String](topics, kafkaParams)
     )
 
-//    // 只取V
-//    val ds1: DStream[String] = ds.map(record => record.value())
-//
-//    // 分割+压平，ds2中的一个string是一个单词
-//    val ds2: DStream[String] = ds1.flatMap(line => line.split(" "))
-//
-//    // word count
-//    val ds3: DStream[(String, Int)] = ds2.map(word => (word, 1)).reduceByKey(_ + _)
+    // ds1: MappedDStream  Option[RDD[U]]
+    val ds1: DStream[String] = ds.map(record => record.value())
+
+    // 获取偏移量offset
+    var ranges: Array[OffsetRange] = null  // 在Driver端
+    println("a:"+Thread.currentThread().getName())
+    val ds2: DStream[ConsumerRecord[String, String]] = ds.transform(rdd => { // 在Driver端 JobGenerator
+      println("b:"+Thread.currentThread().getName())
+      // 偏移量
+      ranges = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
+//      for (elem <- ranges) {
+//        println(elem)
+//      }
+      ranges.foreach(
+        println(_)
+      )
+      rdd
+    })
+
 
     // 输出：在屏幕打印
     //   print() 默认打印10行
-    ds.map(record=>{
+    ds2.map(record=>{
+      println(record.value())
+      println("c:"+Thread.currentThread().getName())
       Thread.sleep(500)
-      if(record.value().equals("B")){
-        throw new RuntimeException("程序异常")
-      }
-      record.value()
-    }).print(1000)
+    }).foreachRDD(rdd=>{
+      println("d:"+Thread.currentThread().getName())
+      // 输出
+      rdd.foreach(word=>println("e:"+Thread.currentThread().getName() + ":" + word))   //rdd.xxx 里面的在Executor端执行
+
+      // 手动提交offset
+      ds.asInstanceOf[CanCommitOffsets].commitAsync(ranges)
+    })//.print(1000)
+
+    ds1.foreachRDD(word=> println(word))
 
     // 启动APP
     streamingContext.start()
