@@ -11,8 +11,25 @@ import org.apache.spark.{SparkConf, SparkContext}
 
 /*
 * at least once + 幂等输出= exactly once
+*
+* 数据库按照 特性 可分为 两种：
+*   OLAP数据库：online analytic process 在线分析（大型查询）处理
+*       hbase（filter）、es（DSL）、clickhouse、TIDB、Presto、Impala、SparkSQL
+*       OLAP数据库基本都是NoSQL数据，且是分布式，分布式最难实现的就是事务，一般支持部分事务
+*       hbase：如果要写入的数据都在1行，可以保证事务，但是不在1行，不可以 保证事务，即只能保证部分事务
+*   OLTP数据库：online transaction process 在线事务处理
+*       RDMS： mysql、oracle、DB2、sql server、Postgres SQL
+* 数据库按照模式（是不是关系型数据库）分为：NoSQL 和 RDMS
+*
+* Hive是基于OLAP的数据仓库
+* 数据仓库：历史版本留存
+* 数据库：只保留最新版本
+*
+* Redis是NoSQL数据库，没有分析、事务功能
+*
+* GreenPlum是OLAP、OLTP？
 * */
-object ExactlyOnceTemplateDemo {
+object ExactlyOnceIdempotentDemo {
   def main(args: Array[String]): Unit = {
     // 创建 streamingContext 方式1
     // Create a StreamingContext by providing the details necessary for creating a new SparkContext.
@@ -115,11 +132,12 @@ object ExactlyOnceTemplateDemo {
       // 对RDD进行转换
       // ......
 
+      // 重点！！！！！幂等输出到redis、mysql、es、hbase、屏幕、log！！！！在提交Offsets前，执行幂等操作
       // 幂等输出到redis、mysql、es、hbase、屏幕、log
-
-      // 手动提交Offsets
+      // 手动提交Offsets的2种选择
+      // 选择1：下面这条语句是提交到Kafka的topic _consumer_offsets
       ds.asInstanceOf[CanCommitOffsets].commitAsync(ranges)
-
+      // 选择2：将偏移量写到任意数据库
     })
 
     // 启动APP
