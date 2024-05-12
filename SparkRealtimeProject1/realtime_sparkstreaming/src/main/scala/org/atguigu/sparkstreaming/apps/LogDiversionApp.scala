@@ -1,11 +1,18 @@
 package org.atguigu.sparkstreaming.apps
 
+import com.alibaba.fastjson.{JSON, JSONArray, JSONObject}
 import com.atguigu.realtime.constants.TopicConstant
+import com.atguigu.realtime.utils.KafkaProducerUtil
+import com.google.gson.Gson
 import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.apache.spark.rdd.RDD
 import org.apache.spark.streaming.dstream.InputDStream
+import org.apache.spark.streaming.kafka010.{CanCommitOffsets, HasOffsetRanges, OffsetRange}
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.atguigu.sparkstreaming.utils.DStreamUtil
+
+import java.util
 
 /**
  * @author: yuan.xin
@@ -19,7 +26,7 @@ import org.atguigu.sparkstreaming.utils.DStreamUtil
  *    离线数仓的HDFS 对应 实时项目的Kafka
  *
  * ------------------------------------
- * at least once
+ * at least once + 幂等输出（kafka producer 开启输出幂等配置）
  */
 object LogDiversionApp extends BaseApp {
 
@@ -42,9 +49,61 @@ object LogDiversionApp extends BaseApp {
 
     // 编写业务代码
     runApp{
-      ds.foreachRDD(
-
+      ds.foreachRDD(rdd => {
+        if(!rdd.isEmpty()){
+          // 获取当前消费到的偏移量
+          val ranges: Array[OffsetRange] = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
+          // 处理
+          handleLog(rdd)
+          // 提交offsets
+          ds.asInstanceOf[CanCommitOffsets].commitAsync(ranges)
+        }
+      }
       )
+    }
+  }
+
+  /**
+   * 挑选start_log,action_log(拆分），并将json字符串写到Kafka
+   * 只要读写数据库/中间件，以分区操作为单位
+   * @param rdd
+   */
+  private def handleLog(rdd: RDD[ConsumerRecord[String, String]]) = {
+    rdd.foreachPartition(partition=>{
+      // 以分区为单位创建gson
+      val gson = new Gson()
+
+      partition.foreach(record=>{
+        // 取出Kafka中的value
+        val jSONObject: JSONObject = JSON.parseObject(record.value())
+        if(jSONObject.containsKey("start") && !jSONObject.containsValue("err")){
+          // 这是一条启动过日志
+          KafkaProducerUtil.sendData(gson.toJson(jSONObject), TopicConstant.STARTUP_LOG)
+        }else if (jSONObject.containsKey("actions") && !jSONObject.containsValue("err")){
+          // 折是一条含有actions的日志，需要把actions炸裂，取出每一条action，再和当前这条日志的common、page部分拼接成一条新的jsonstr，
+          // 写到kafka
+          // 获取common部分
+          val commonMap: util.Map[String, AnyRef] = JSON.parseObject(jSONObject.getString("common")).getInnerMap
+          val pageMap: util.Map[String, AnyRef] = JSON.parseObject(jSONObject.getString("page")).getInnerMap
+          val actionsStr: String = jSONObject.getString("actions")
+          parseActions(commonMap,pageMap,actionsStr,gson)
+        }
+      })
+
+      // 着急，可以立刻flush缓冲区
+      KafkaProducerUtil.flush()
+    })
+  }
+
+  private def parseActions(commonMap: util.Map[String, AnyRef], pageMap: util.Map[String, AnyRef], actionsStr: String,gson:Gson) = {
+    val jSONArray: JSONArray = JSON.parseArray(actionsStr)
+    for(i<-0 until jSONArray.size){
+      val actionStr: String = jSONArray.getString(i)
+      val actionMap: util.Map[String, AnyRef] = JSON.parseObject(actionStr).getInnerMap
+      // 3个Map合并，3个Map中有重名的key（后合并会覆盖前面的），要注意顺序，否则无所谓
+      actionMap.putAll(commonMap)
+      actionMap.putAll(pageMap)
+      KafkaProducerUtil.sendData(gson.toJson(actionMap), TopicConstant.ACTION_LOG)
     }
   }
 }

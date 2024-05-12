@@ -24,7 +24,10 @@ object BaseAppTestApp extends BaseApp {
   def main(args: Array[String]): Unit = {
 
     // 重写StreamingContext
-    val sparkConf = new SparkConf().setMaster("local[*]").setAppName(appName).set("spark.testing.memory", "2147480000")
+    // 这里的Master写的是local[*]表示使用本地的集群，在线上应该改为yarn或null
+    // val sparkConf = new SparkConf().setMaster("local[*]").setAppName(appName).set("spark.testing.memory", "2147480000")
+    // bin/spark-submit --master yarn --class org.atguigu.sparkstreaming.apps.BaseAppTestApp 参数会默认放在SparkConf中
+    val sparkConf = new SparkConf().setAppName(appName)
     val sparkContext = new SparkContext(sparkConf)
     context = new StreamingContext(sparkContext, Seconds(batchDuration))
 
