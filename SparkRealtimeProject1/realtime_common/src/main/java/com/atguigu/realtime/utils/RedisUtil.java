@@ -13,7 +13,9 @@ public class RedisUtil {
     public static Jedis getJedis(){
         String host = PropertiesUtil.getProperty("redis.host");
         String port = PropertiesUtil.getProperty("redis.port");
-        return new Jedis(host, Integer.parseInt(port));
+        Jedis jedis = new Jedis(host, Integer.parseInt(port));
+        jedis.auth(PropertiesUtil.getProperty("redis.password"));
+        return jedis;
     }
 
     public static void main(String[] Args) {

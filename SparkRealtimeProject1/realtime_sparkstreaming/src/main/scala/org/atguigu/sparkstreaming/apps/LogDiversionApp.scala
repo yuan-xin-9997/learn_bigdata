@@ -72,13 +72,16 @@ object LogDiversionApp extends BaseApp {
     rdd.foreachPartition(partition=>{
       // 以分区为单位创建gson
       val gson = new Gson()
-
       partition.foreach(record=>{
         // 取出Kafka中的value
         val jSONObject: JSONObject = JSON.parseObject(record.value())
         if(jSONObject.containsKey("start") && !jSONObject.containsValue("err")){
           // 这是一条启动过日志
-          KafkaProducerUtil.sendData(gson.toJson(jSONObject), TopicConstant.STARTUP_LOG)
+          val commonMap: util.Map[String, AnyRef] = JSON.parseObject(jSONObject.getString("common")).getInnerMap
+          commonMap.put("ts", jSONObject.getLong("ts"))
+          val startMap: util.Map[String, AnyRef] = JSON.parseObject(jSONObject.getString("start")).getInnerMap
+          startMap.putAll(commonMap)
+          KafkaProducerUtil.sendData(gson.toJson(startMap), TopicConstant.STARTUP_LOG)
         }else if (jSONObject.containsKey("actions") && !jSONObject.containsValue("err")){
           // 折是一条含有actions的日志，需要把actions炸裂，取出每一条action，再和当前这条日志的common、page部分拼接成一条新的jsonstr，
           // 写到kafka
@@ -89,7 +92,6 @@ object LogDiversionApp extends BaseApp {
           parseActions(commonMap,pageMap,actionsStr,gson)
         }
       })
-
       // 着急，可以立刻flush缓冲区
       KafkaProducerUtil.flush()
     })
