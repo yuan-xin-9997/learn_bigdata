@@ -11,6 +11,7 @@
     <modules>
         <module>realtime_common</module>
         <module>realtime_sparkstreaming</module>
+        <module>realtime_canalclient</module>
     </modules>
 
 <!--
