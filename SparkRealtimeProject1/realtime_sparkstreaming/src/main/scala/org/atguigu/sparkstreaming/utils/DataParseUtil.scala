@@ -54,5 +54,7 @@ object DataParseUtil {
     // 使用日期格式化Date
     val dateTimeStr: String = dateTime.format(formatter)
     println(dateTimeStr)
+
+    println("--------------------------java8之后: 时间日期的转换------------------------")
   }
 }

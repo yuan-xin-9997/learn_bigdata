@@ -1,0 +1,494 @@
+Message[id=1,entries=[header {
+  version: 1
+  logfileName: "mysql-bin.000054"
+  logfileOffset: 219
+  serverId: 1
+  serverenCode: "UTF-8"
+  executeTime: 1715692591000
+  sourceType: MYSQL
+  eventLength: 239
+  eventType: QUERY
+}
+entryType: ROWDATA
+storeValue: "\020\aZ\240\001GRANT SELECT, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO \'canal\'@\'%\' IDENTIFIED WITH \'mysql_native_password\' AS \'*E3619321C1A937C46A0D8BD1DAC39F93B27D4458\'"
+],raw=false,rawEntries=[]]
+
+Message[id=-1,entries=[],raw=false,rawEntries=[]]
+没拉取到数据，就是-1
+------------------------------------------------------------
+Message message = canalConnector.get(100);   获取100条sql语句带来的写操作变化
+      一个Entry对应1条sql导致的结果变化
+
+Message中维护了以下结构
+    private List<Entry> entries = new ArrayList()
+    拉取到的binlog数据。
+关注:
+    header:
+        schemaName：库名
+        tableName： 表名
+        eventType:
+            写操作的SQL关键字
+            update, insert,delete, truncate,create,drop, begin, rol
+            entryTyne:
+            写操作的SQL关键字的分类。
+            begin:
+            entryType: TRANSACTIONBEGIN
+            rollback,commit: entryType: TRANSACTIONEND
+            update， insert，delete： entryType： ROWDATA（涉及到原始数据的变化）
+    storeValue： 数据变化。序列化的数据。在使用之前反序列化。
+            工具类： RowChange
+
+
+
+Message[id=2,entries=[header {
+  version: 1
+  logfileName: "mysql-bin.000056"
+  logfileOffset: 219
+  serverId: 1
+  serverenCode: "UTF-8"
+  executeTime: 1716416299000
+  sourceType: MYSQL
+  schemaName: "spark_realtime"
+  tableName: "order_info"
+  eventLength: 102
+  eventType: TRUNCATE
+}
+entryType: ROWDATA
+storeValue: "\020\bP\001Z\031TRUNCATE TABLE order_infor\016spark_realtime"
+, header {
+  version: 1
+  logfileName: "mysql-bin.000056"
+  logfileOffset: 890
+  serverId: 1
+  serverenCode: "UTF-8"
+  executeTime: 1716416299000
+  sourceType: MYSQL
+  schemaName: ""
+  tableName: ""
+  eventLength: 90
+}
+entryType: TRANSACTIONBEGIN
+storeValue: " \b"
+, header {
+  version: 1
+  logfileName: "mysql-bin.000056"
+  logfileOffset: 4310
+  serverId: 1
+  serverenCode: "UTF-8"
+  executeTime: 1716416299000
+  sourceType: MYSQL
+  schemaName: ""
+  tableName: ""
+  eventLength: 31
+}
+entryType: TRANSACTIONEND
+storeValue: "\022\003726"
+, header {
+  version: 1
+  logfileName: "mysql-bin.000056"
+  logfileOffset: 4406
+  serverId: 1
+  serverenCode: "UTF-8"
+  executeTime: 1716416299000
+  sourceType: MYSQL
+  schemaName: ""
+  tableName: ""
+  eventLength: 90
+}
+entryType: TRANSACTIONBEGIN
+storeValue: " \b"
+, header {
+  version: 1
+  logfileName: "mysql-bin.000056"
+  logfileOffset: 4603
+  serverId: 1
+  serverenCode: "UTF-8"
+  executeTime: 1716416299000
+  sourceType: MYSQL
+  schemaName: "spark_realtime"
+  tableName: "order_info"
+  eventLength: 156
+  eventType: INSERT
+  props {
+    key: "rowsCount"
+    value: "1"
+  }
+}
+entryType: ROWDATA
+storeValue: "\b\274\002\020\001P\000b\315\006\022&\b\000\020\373\377\377\377\377\377\377\377\377\001\032\002id \001(\0010\000B\0011R\nbigint(20)\022+\b\001\020\f\032\tconsignee \000(\0010\000B\006OuIfECR\fvarchar(100)\0223\b\002\020\f\032\rconsignee_tel \000(\0010\000B\v13049760185R\vvarchar(20)\022.\b\003\020\003\032\ftotal_amount \000(\0010\000B\005550.0R\rdecimal(10,2)\022(\b\004\020\f\032\forder_status \000(\0010\000B\0012R\vvarchar(20)\022+\b\005\020\373\377\377\377\377\377\377\377\377\001\032\auser_id \000(\0010\000B\0019R\nbigint(20)\022\'\b\006\020\f\032\vpayment_way \000(\0010\000B\0012R\vvarchar(20)\022A\b\a\020\f\032\020delivery_address \000(\0010\000B\024wwRUXgLlXdzmLWzFJnvqR\rvarchar(1000)\022=\b\b\020\f\032\rorder_comment \000(\0010\000B\024qHpDVVNfnYdvSaCJORSMR\fvarchar(200)\0221\b\t\020\f\032\fout_trade_no \000(\0010\000B\n1408888782R\vvarchar(50)\022&\b\n\020\f\032\ntrade_body \000(\0010\000B\000R\fvarchar(200)\0226\b\v\020]\032\vcreate_time \000(\0010\000B\0232024-05-14 05:46:25R\bdatetime\0227\b\f\020]\032\foperate_time \000(\0010\000B\0232024-05-14 06:16:59R\bdatetime\022!\b\r\020]\032\vexpire_time \000(\0010\001R\bdatetime\022%\b\016\020\f\032\vtracking_no \000(\0010\001R\fvarchar(100)\0220\b\017\020\373\377\377\377\377\377\377\377\377\001\032\017parent_order_id \000(\0010\001R\nbigint(20)\022!\b\020\020\f\032\aimg_url \000(\0010\001R\fvarchar(200)\022$\b\021\020\004\032\vprovince_id \000(\0010\000B\00216R\aint(20)"
+, header {
+  version: 1
+  logfileName: "mysql-bin.000056"
+  logfileOffset: 6065
+  serverId: 1
+  serverenCode: "UTF-8"
+  executeTime: 1716416299000
+  sourceType: MYSQL
+  schemaName: "spark_realtime"
+  tableName: "order_info"
+  eventLength: 156
+  eventType: INSERT
+  props {
+    key: "rowsCount"
+    value: "1"
+  }
+}
+entryType: ROWDATA
+storeValue: "\b\274\002\020\001P\000b\314\006\022&\b\000\020\373\377\377\377\377\377\377\377\377\001\032\002id \001(\0010\000B\0012R\nbigint(20)\022+\b\001\020\f\032\tconsignee \000(\0010\000B\006gdWAMkR\fvarchar(100)\0223\b\002\020\f\032\rconsignee_tel \000(\0010\000B\v13733565173R\vvarchar(20)\022.\b\003\020\003\032\ftotal_amount \000(\0010\000B\005524.0R\rdecimal(10,2)\022(\b\004\020\f\032\forder_status \000(\0010\000B\0012R\vvarchar(20)\022+\b\005\020\373\377\377\377\377\377\377\377\377\001\032\auser_id \000(\0010\000B\0015R\nbigint(20)\022\'\b\006\020\f\032\vpayment_way \000(\0010\000B\0012R\vvarchar(20)\022A\b\a\020\f\032\020delivery_address \000(\0010\000B\024hYxrovkNlQvHWLSdQSSIR\rvarchar(1000)\022=\b\b\020\f\032\rorder_comment \000(\0010\000B\024NRTSKTqXPivFOfjDoJCNR\fvarchar(200)\0221\b\t\020\f\032\fout_trade_no \000(\0010\000B\n1299845630R\vvarchar(50)\022&\b\n\020\f\032\ntrade_body \000(\0010\000B\000R\fvarchar(200)\0226\b\v\020]\032\vcreate_time \000(\0010\000B\0232024-05-14 08:37:34R\bdatetime\0227\b\f\020]\032\foperate_time \000(\0010\000B\0232024-05-14 09:08:36R\bdatetime\022!\b\r\020]\032\vexpire_time \000(\0010\001R\bdatetime\022%\b\016\020\f\032\vtracking_no \000(\0010\001R\fvarchar(100)\0220\b\017\020\373\377\377\377\377\377\377\377\377\001\032\017parent_order_id \000(\0010\001R\nbigint(20)\022!\b\020\020\f\032\aimg_url \000(\0010\001R\fvarchar(200)\022#\b\021\020\004\032\vprovince_id \000(\0010\000B\0017R\aint(20)"
+, header {
+  version: 1
+  logfileName: "mysql-bin.000056"
+  logfileOffset: 6636
+  serverId: 1
+  serverenCode: "UTF-8"
+  executeTime: 1716416299000
+  sourceType: MYSQL
+  schemaName: "spark_realtime"
+  tableName: "order_info"
+  eventLength: 151
+  eventType: INSERT
+  props {
+    key: "rowsCount"
+    value: "1"
+  }
+}
+entryType: ROWDATA
+storeValue: "\b\274\002\020\001P\000b\270\006\022&\b\000\020\373\377\377\377\377\377\377\377\377\001\032\002id \001(\0010\000B\0013R\nbigint(20)\022+\b\001\020\f\032\tconsignee \000(\0010\000B\006RUWYcsR\fvarchar(100)\0223\b\002\020\f\032\rconsignee_tel \000(\0010\000B\v13618716958R\vvarchar(20)\022.\b\003\020\003\032\ftotal_amount \000(\0010\000B\005769.0R\rdecimal(10,2)\022(\b\004\020\f\032\forder_status \000(\0010\000B\0011R\vvarchar(20)\022+\b\005\020\373\377\377\377\377\377\377\377\377\001\032\auser_id \000(\0010\000B\0012R\nbigint(20)\022\'\b\006\020\f\032\vpayment_way \000(\0010\000B\0012R\vvarchar(20)\022A\b\a\020\f\032\020delivery_address \000(\0010\000B\024JkilJvkQwNzipdvSbFWRR\rvarchar(1000)\022=\b\b\020\f\032\rorder_comment \000(\0010\000B\024uyiuyjyQKcfxTbzwIbhHR\fvarchar(200)\0221\b\t\020\f\032\fout_trade_no \000(\0010\000B\n7080604147R\vvarchar(50)\022&\b\n\020\f\032\ntrade_body \000(\0010\000B\000R\fvarchar(200)\0226\b\v\020]\032\vcreate_time \000(\0010\000B\0232024-05-14 20:44:38R\bdatetime\022\"\b\f\020]\032\foperate_time \000(\0010\001R\bdatetime\022!\b\r\020]\032\vexpire_time \000(\0010\001R\bdatetime\022%\b\016\020\f\032\vtracking_no \000(\0010\001R\fvarchar(100)\0220\b\017\020\373\377\377\377\377\377\377\377\377\001\032\017parent_order_id \000(\0010\001R\nbigint(20)\022!\b\020\020\f\032\aimg_url \000(\0010\001R\fvarchar(200)\022$\b\021\020\004\032\vprovince_id \000(\0010\000B\00220R\aint(20)"
+, header {
+  version: 1
+  logfileName: "mysql-bin.000056"
+  logfileOffset: 7217
+  serverId: 1
+  serverenCode: "UTF-8"
+  executeTime: 1716416299000
+  sourceType: MYSQL
+  schemaName: "spark_realtime"
+  tableName: "order_info"
+  eventLength: 156
+  eventType: INSERT
+  props {
+    key: "rowsCount"
+    value: "1"
+  }
+}
+entryType: ROWDATA
+storeValue: "\b\274\002\020\001P\000b\315\006\022&\b\000\020\373\377\377\377\377\377\377\377\377\001\032\002id \001(\0010\000B\0014R\nbigint(20)\022+\b\001\020\f\032\tconsignee \000(\0010\000B\006jqblZoR\fvarchar(100)\0223\b\002\020\f\032\rconsignee_tel \000(\0010\000B\v13435641720R\vvarchar(20)\022.\b\003\020\003\032\ftotal_amount \000(\0010\000B\005322.0R\rdecimal(10,2)\022(\b\004\020\f\032\forder_status \000(\0010\000B\0012R\vvarchar(20)\022+\b\005\020\373\377\377\377\377\377\377\377\377\001\032\auser_id \000(\0010\000B\0014R\nbigint(20)\022\'\b\006\020\f\032\vpayment_way \000(\0010\000B\0011R\vvarchar(20)\022A\b\a\020\f\032\020delivery_address \000(\0010\000B\024fvKmhbInnCYkeQRKcepoR\rvarchar(1000)\022=\b\b\020\f\032\rorder_comment \000(\0010\000B\024yAipZconwwQNvOHVEkoOR\fvarchar(200)\0221\b\t\020\f\032\fout_trade_no \000(\0010\000B\n0813212472R\vvarchar(50)\022&\b\n\020\f\032\ntrade_body \000(\0010\000B\000R\fvarchar(200)\0226\b\v\020]\032\vcreate_time \000(\0010\000B\0232024-05-14 19:22:56R\bdatetime\0227\b\f\020]\032\foperate_time \000(\0010\000B\0232024-05-14 19:35:10R\bdatetime\022!\b\r\020]\032\vexpire_time \000(\0010\001R\bdatetime\022%\b\016\020\f\032\vtracking_no \000(\0010\001R\fvarchar(100)\0220\b\017\020\373\377\377\377\377\377\377\377\377\001\032\017parent_order_id \000(\0010\001R\nbigint(20)\022!\b\020\020\f\032\aimg_url \000(\0010\001R\fvarchar(200)\022$\b\021\020\004\032\vprovince_id \000(\0010\000B\00217R\aint(20)"
+, header {
+  version: 1
+  logfileName: "mysql-bin.000056"
+  logfileOffset: 7804
+  serverId: 1
+  serverenCode: "UTF-8"
+  executeTime: 1716416299000
+  sourceType: MYSQL
+  schemaName: "spark_realtime"
+  tableName: "order_info"
+  eventLength: 156
+  eventType: INSERT
+  props {
+    key: "rowsCount"
+    value: "1"
+  }
+}
+entryType: ROWDATA
+storeValue: "\b\274\002\020\001P\000b\314\006\022&\b\000\020\373\377\377\377\377\377\377\377\377\001\032\002id \001(\0010\000B\0015R\nbigint(20)\022+\b\001\020\f\032\tconsignee \000(\0010\000B\006eCBYqJR\fvarchar(100)\0223\b\002\020\f\032\rconsignee_tel \000(\0010\000B\v13194320767R\vvarchar(20)\022.\b\003\020\003\032\ftotal_amount \000(\0010\000B\005876.0R\rdecimal(10,2)\022(\b\004\020\f\032\forder_status \000(\0010\000B\0012R\vvarchar(20)\022+\b\005\020\373\377\377\377\377\377\377\377\377\001\032\auser_id \000(\0010\000B\0012R\nbigint(20)\022\'\b\006\020\f\032\vpayment_way \000(\0010\000B\0011R\vvarchar(20)\022A\b\a\020\f\032\020delivery_address \000(\0010\000B\024QYtWEgSXgPFIyvELRbImR\rvarchar(1000)\022=\b\b\020\f\032\rorder_comment \000(\0010\000B\024lshFFklBVarEZhMoiaADR\fvarchar(200)\0221\b\t\020\f\032\fout_trade_no \000(\0010\000B\n2762230357R\vvarchar(50)\022&\b\n\020\f\032\ntrade_body \000(\0010\000B\000R\fvarchar(200)\0226\b\v\020]\032\vcreate_time \000(\0010\000B\0232024-05-14 22:51:09R\bdatetime\0227\b\f\020]\032\foperate_time \000(\0010\000B\0232024-05-14 23:48:27R\bdatetime\022!\b\r\020]\032\vexpire_time \000(\0010\001R\bdatetime\022%\b\016\020\f\032\vtracking_no \000(\0010\001R\fvarchar(100)\0220\b\017\020\373\377\377\377\377\377\377\377\377\001\032\017parent_order_id \000(\0010\001R\nbigint(20)\022!\b\020\020\f\032\aimg_url \000(\0010\001R\fvarchar(200)\022#\b\021\020\004\032\vprovince_id \000(\0010\000B\0016R\aint(20)"
+, header {
+  version: 1
+  logfileName: "mysql-bin.000056"
+  logfileOffset: 9567
+  serverId: 1
+  serverenCode: "UTF-8"
+  executeTime: 1716416299000
+  sourceType: MYSQL
+  schemaName: "spark_realtime"
+  tableName: "order_info"
+  eventLength: 156
+  eventType: INSERT
+  props {
+    key: "rowsCount"
+    value: "1"
+  }
+}
+entryType: ROWDATA
+storeValue: "\b\274\002\020\001P\000b\315\006\022&\b\000\020\373\377\377\377\377\377\377\377\377\001\032\002id \001(\0010\000B\0016R\nbigint(20)\022+\b\001\020\f\032\tconsignee \000(\0010\000B\006bKymQrR\fvarchar(100)\0223\b\002\020\f\032\rconsignee_tel \000(\0010\000B\v13210638944R\vvarchar(20)\022.\b\003\020\003\032\ftotal_amount \000(\0010\000B\005767.0R\rdecimal(10,2)\022(\b\004\020\f\032\forder_status \000(\0010\000B\0012R\vvarchar(20)\022+\b\005\020\373\377\377\377\377\377\377\377\377\001\032\auser_id \000(\0010\000B\0015R\nbigint(20)\022\'\b\006\020\f\032\vpayment_way \000(\0010\000B\0012R\vvarchar(20)\022A\b\a\020\f\032\020delivery_address \000(\0010\000B\024EXajTQAeSdOLkSLaVBWbR\rvarchar(1000)\022=\b\b\020\f\032\rorder_comment \000(\0010\000B\024sJqDTJOTZtUraZYRoSzUR\fvarchar(200)\0221\b\t\020\f\032\fout_trade_no \000(\0010\000B\n0363839775R\vvarchar(50)\022&\b\n\020\f\032\ntrade_body \000(\0010\000B\000R\fvarchar(200)\0226\b\v\020]\032\vcreate_time \000(\0010\000B\0232024-05-14 13:44:33R\bdatetime\0227\b\f\020]\032\foperate_time \000(\0010\000B\0232024-05-14 13:52:56R\bdatetime\022!\b\r\020]\032\vexpire_time \000(\0010\001R\bdatetime\022%\b\016\020\f\032\vtracking_no \000(\0010\001R\fvarchar(100)\0220\b\017\020\373\377\377\377\377\377\377\377\377\001\032\017parent_order_id \000(\0010\001R\nbigint(20)\022!\b\020\020\f\032\aimg_url \000(\0010\001R\fvarchar(200)\022$\b\021\020\004\032\vprovince_id \000(\0010\000B\00230R\aint(20)"
+, header {
+  version: 1
+  logfileName: "mysql-bin.000056"
+  logfileOffset: 11022
+  serverId: 1
+  serverenCode: "UTF-8"
+  executeTime: 1716416299000
+  sourceType: MYSQL
+  schemaName: "spark_realtime"
+  tableName: "order_info"
+  eventLength: 151
+  eventType: INSERT
+  props {
+    key: "rowsCount"
+    value: "1"
+  }
+}
+entryType: ROWDATA
+storeValue: "\b\274\002\020\001P\000b\267\006\022&\b\000\020\373\377\377\377\377\377\377\377\377\001\032\002id \001(\0010\000B\0017R\nbigint(20)\022+\b\001\020\f\032\tconsignee \000(\0010\000B\006aDPqkcR\fvarchar(100)\0223\b\002\020\f\032\rconsignee_tel \000(\0010\000B\v13584874629R\vvarchar(20)\022.\b\003\020\003\032\ftotal_amount \000(\0010\000B\005318.0R\rdecimal(10,2)\022(\b\004\020\f\032\forder_status \000(\0010\000B\0011R\vvarchar(20)\022+\b\005\020\373\377\377\377\377\377\377\377\377\001\032\auser_id \000(\0010\000B\0015R\nbigint(20)\022\'\b\006\020\f\032\vpayment_way \000(\0010\000B\0011R\vvarchar(20)\022A\b\a\020\f\032\020delivery_address \000(\0010\000B\024YxtzqfDCcJXSyOAkxJcjR\rvarchar(1000)\022=\b\b\020\f\032\rorder_comment \000(\0010\000B\024NncvXAJVARJEdFPjDlxDR\fvarchar(200)\0221\b\t\020\f\032\fout_trade_no \000(\0010\000B\n4721925852R\vvarchar(50)\022&\b\n\020\f\032\ntrade_body \000(\0010\000B\000R\fvarchar(200)\0226\b\v\020]\032\vcreate_time \000(\0010\000B\0232024-05-14 09:07:04R\bdatetime\022\"\b\f\020]\032\foperate_time \000(\0010\001R\bdatetime\022!\b\r\020]\032\vexpire_time \000(\0010\001R\bdatetime\022%\b\016\020\f\032\vtracking_no \000(\0010\001R\fvarchar(100)\0220\b\017\020\373\377\377\377\377\377\377\377\377\001\032\017parent_order_id \000(\0010\001R\nbigint(20)\022!\b\020\020\f\032\aimg_url \000(\0010\001R\fvarchar(200)\022#\b\021\020\004\032\vprovince_id \000(\0010\000B\0015R\aint(20)"
+, header {
+  version: 1
+  logfileName: "mysql-bin.000056"
+  logfileOffset: 12818
+  serverId: 1
+  serverenCode: "UTF-8"
+  executeTime: 1716416299000
+  sourceType: MYSQL
+  schemaName: "spark_realtime"
+  tableName: "order_info"
+  eventLength: 156
+  eventType: INSERT
+  props {
+    key: "rowsCount"
+    value: "1"
+  }
+}
+entryType: ROWDATA
+storeValue: "\b\274\002\020\001P\000b\315\006\022&\b\000\020\373\377\377\377\377\377\377\377\377\001\032\002id \001(\0010\000B\0018R\nbigint(20)\022+\b\001\020\f\032\tconsignee \000(\0010\000B\006drzvHZR\fvarchar(100)\0223\b\002\020\f\032\rconsignee_tel \000(\0010\000B\v13900222593R\vvarchar(20)\022.\b\003\020\003\032\ftotal_amount \000(\0010\000B\005578.0R\rdecimal(10,2)\022(\b\004\020\f\032\forder_status \000(\0010\000B\0012R\vvarchar(20)\022+\b\005\020\373\377\377\377\377\377\377\377\377\001\032\auser_id \000(\0010\000B\0019R\nbigint(20)\022\'\b\006\020\f\032\vpayment_way \000(\0010\000B\0012R\vvarchar(20)\022A\b\a\020\f\032\020delivery_address \000(\0010\000B\024VvrvejJFgTWcvWyzeWwtR\rvarchar(1000)\022=\b\b\020\f\032\rorder_comment \000(\0010\000B\024ERspuelUNhwLqviBhgmQR\fvarchar(200)\0221\b\t\020\f\032\fout_trade_no \000(\0010\000B\n3237930210R\vvarchar(50)\022&\b\n\020\f\032\ntrade_body \000(\0010\000B\000R\fvarchar(200)\0226\b\v\020]\032\vcreate_time \000(\0010\000B\0232024-05-14 21:42:01R\bdatetime\0227\b\f\020]\032\foperate_time \000(\0010\000B\0232024-05-14 22:42:00R\bdatetime\022!\b\r\020]\032\vexpire_time \000(\0010\001R\bdatetime\022%\b\016\020\f\032\vtracking_no \000(\0010\001R\fvarchar(100)\0220\b\017\020\373\377\377\377\377\377\377\377\377\001\032\017parent_order_id \000(\0010\001R\nbigint(20)\022!\b\020\020\f\032\aimg_url \000(\0010\001R\fvarchar(200)\022$\b\021\020\004\032\vprovince_id \000(\0010\000B\00233R\aint(20)"
+, header {
+  version: 1
+  logfileName: "mysql-bin.000056"
+  logfileOffset: 13711
+  serverId: 1
+  serverenCode: "UTF-8"
+  executeTime: 1716416299000
+  sourceType: MYSQL
+  schemaName: "spark_realtime"
+  tableName: "order_info"
+  eventLength: 151
+  eventType: INSERT
+  props {
+    key: "rowsCount"
+    value: "1"
+  }
+}
+entryType: ROWDATA
+storeValue: "\b\274\002\020\001P\000b\270\006\022&\b\000\020\373\377\377\377\377\377\377\377\377\001\032\002id \001(\0010\000B\0019R\nbigint(20)\022+\b\001\020\f\032\tconsignee \000(\0010\000B\006CNkJSjR\fvarchar(100)\0223\b\002\020\f\032\rconsignee_tel \000(\0010\000B\v13348106375R\vvarchar(20)\022.\b\003\020\003\032\ftotal_amount \000(\0010\000B\005633.0R\rdecimal(10,2)\022(\b\004\020\f\032\forder_status \000(\0010\000B\0011R\vvarchar(20)\022+\b\005\020\373\377\377\377\377\377\377\377\377\001\032\auser_id \000(\0010\000B\0015R\nbigint(20)\022\'\b\006\020\f\032\vpayment_way \000(\0010\000B\0011R\vvarchar(20)\022A\b\a\020\f\032\020delivery_address \000(\0010\000B\024JHtTpSrjTTKSkwEEjhkCR\rvarchar(1000)\022=\b\b\020\f\032\rorder_comment \000(\0010\000B\024fWsYPcUpQjAWjeVrUxFIR\fvarchar(200)\0221\b\t\020\f\032\fout_trade_no \000(\0010\000B\n4469964323R\vvarchar(50)\022&\b\n\020\f\032\ntrade_body \000(\0010\000B\000R\fvarchar(200)\0226\b\v\020]\032\vcreate_time \000(\0010\000B\0232024-05-14 15:43:16R\bdatetime\022\"\b\f\020]\032\foperate_time \000(\0010\001R\bdatetime\022!\b\r\020]\032\vexpire_time \000(\0010\001R\bdatetime\022%\b\016\020\f\032\vtracking_no \000(\0010\001R\fvarchar(100)\0220\b\017\020\373\377\377\377\377\377\377\377\377\001\032\017parent_order_id \000(\0010\001R\nbigint(20)\022!\b\020\020\f\032\aimg_url \000(\0010\001R\fvarchar(200)\022$\b\021\020\004\032\vprovince_id \000(\0010\000B\00223R\aint(20)"
+, header {
+  version: 1
+  logfileName: "mysql-bin.000056"
+  logfileOffset: 15494
+  serverId: 1
+  serverenCode: "UTF-8"
+  executeTime: 1716416299000
+  sourceType: MYSQL
+  schemaName: "spark_realtime"
+  tableName: "order_info"
+  eventLength: 156
+  eventType: INSERT
+  props {
+    key: "rowsCount"
+    value: "1"
+  }
+}
+entryType: ROWDATA
+storeValue: "\b\274\002\020\001P\000b\316\006\022\'\b\000\020\373\377\377\377\377\377\377\377\377\001\032\002id \001(\0010\000B\00210R\nbigint(20)\022+\b\001\020\f\032\tconsignee \000(\0010\000B\006BNiExzR\fvarchar(100)\0223\b\002\020\f\032\rconsignee_tel \000(\0010\000B\v13109706022R\vvarchar(20)\022.\b\003\020\003\032\ftotal_amount \000(\0010\000B\005476.0R\rdecimal(10,2)\022(\b\004\020\f\032\forder_status \000(\0010\000B\0012R\vvarchar(20)\022+\b\005\020\373\377\377\377\377\377\377\377\377\001\032\auser_id \000(\0010\000B\0016R\nbigint(20)\022\'\b\006\020\f\032\vpayment_way \000(\0010\000B\0011R\vvarchar(20)\022A\b\a\020\f\032\020delivery_address \000(\0010\000B\024DieZJxkIKCFvnaqDTHHnR\rvarchar(1000)\022=\b\b\020\f\032\rorder_comment \000(\0010\000B\024teqpDYgJbgzgiuykEqPdR\fvarchar(200)\0221\b\t\020\f\032\fout_trade_no \000(\0010\000B\n9623167749R\vvarchar(50)\022&\b\n\020\f\032\ntrade_body \000(\0010\000B\000R\fvarchar(200)\0226\b\v\020]\032\vcreate_time \000(\0010\000B\0232024-05-14 10:19:07R\bdatetime\0227\b\f\020]\032\foperate_time \000(\0010\000B\0232024-05-14 11:17:06R\bdatetime\022!\b\r\020]\032\vexpire_time \000(\0010\001R\bdatetime\022%\b\016\020\f\032\vtracking_no \000(\0010\001R\fvarchar(100)\0220\b\017\020\373\377\377\377\377\377\377\377\377\001\032\017parent_order_id \000(\0010\001R\nbigint(20)\022!\b\020\020\f\032\aimg_url \000(\0010\001R\fvarchar(200)\022$\b\021\020\004\032\vprovince_id \000(\0010\000B\00222R\aint(20)"
+, header {
+  version: 1
+  logfileName: "mysql-bin.000056"
+  logfileOffset: 16980
+  serverId: 1
+  serverenCode: "UTF-8"
+  executeTime: 1716416299000
+  sourceType: MYSQL
+  schemaName: "spark_realtime"
+  tableName: "order_info"
+  eventLength: 151
+  eventType: INSERT
+  props {
+    key: "rowsCount"
+    value: "1"
+  }
+}
+entryType: ROWDATA
+storeValue: "\b\274\002\020\001P\000b\270\006\022\'\b\000\020\373\377\377\377\377\377\377\377\377\001\032\002id \001(\0010\000B\00211R\nbigint(20)\022+\b\001\020\f\032\tconsignee \000(\0010\000B\006gIYTzOR\fvarchar(100)\0223\b\002\020\f\032\rconsignee_tel \000(\0010\000B\v13406067927R\vvarchar(20)\022.\b\003\020\003\032\ftotal_amount \000(\0010\000B\005689.0R\rdecimal(10,2)\022(\b\004\020\f\032\forder_status \000(\0010\000B\0011R\vvarchar(20)\022+\b\005\020\373\377\377\377\377\377\377\377\377\001\032\auser_id \000(\0010\000B\0013R\nbigint(20)\022\'\b\006\020\f\032\vpayment_way \000(\0010\000B\0011R\vvarchar(20)\022A\b\a\020\f\032\020delivery_address \000(\0010\000B\024uqtUtiKdjLelSEtfwSWhR\rvarchar(1000)\022=\b\b\020\f\032\rorder_comment \000(\0010\000B\024WmwtFVOgrnnDdIcoloNXR\fvarchar(200)\0221\b\t\020\f\032\fout_trade_no \000(\0010\000B\n5676187285R\vvarchar(50)\022&\b\n\020\f\032\ntrade_body \000(\0010\000B\000R\fvarchar(200)\0226\b\v\020]\032\vcreate_time \000(\0010\000B\0232024-05-14 10:53:32R\bdatetime\022\"\b\f\020]\032\foperate_time \000(\0010\001R\bdatetime\022!\b\r\020]\032\vexpire_time \000(\0010\001R\bdatetime\022%\b\016\020\f\032\vtracking_no \000(\0010\001R\fvarchar(100)\0220\b\017\020\373\377\377\377\377\377\377\377\377\001\032\017parent_order_id \000(\0010\001R\nbigint(20)\022!\b\020\020\f\032\aimg_url \000(\0010\001R\fvarchar(200)\022#\b\021\020\004\032\vprovince_id \000(\0010\000B\0015R\aint(20)"
+, header {
+  version: 1
+  logfileName: "mysql-bin.000056"
+  logfileOffset: 17522
+  serverId: 1
+  serverenCode: "UTF-8"
+  executeTime: 1716416299000
+  sourceType: MYSQL
+  schemaName: "spark_realtime"
+  tableName: "order_info"
+  eventLength: 151
+  eventType: INSERT
+  props {
+    key: "rowsCount"
+    value: "1"
+  }
+}
+entryType: ROWDATA
+storeValue: "\b\274\002\020\001P\000b\271\006\022\'\b\000\020\373\377\377\377\377\377\377\377\377\001\032\002id \001(\0010\000B\00212R\nbigint(20)\022+\b\001\020\f\032\tconsignee \000(\0010\000B\006AkBbDMR\fvarchar(100)\0223\b\002\020\f\032\rconsignee_tel \000(\0010\000B\v13964456638R\vvarchar(20)\022.\b\003\020\003\032\ftotal_amount \000(\0010\000B\005951.0R\rdecimal(10,2)\022(\b\004\020\f\032\forder_status \000(\0010\000B\0011R\vvarchar(20)\022+\b\005\020\373\377\377\377\377\377\377\377\377\001\032\auser_id \000(\0010\000B\0013R\nbigint(20)\022\'\b\006\020\f\032\vpayment_way \000(\0010\000B\0012R\vvarchar(20)\022A\b\a\020\f\032\020delivery_address \000(\0010\000B\024mrYSskZpCSIKzuyiuBuwR\rvarchar(1000)\022=\b\b\020\f\032\rorder_comment \000(\0010\000B\024ZFfLppDXdyiwHXOcWyFJR\fvarchar(200)\0221\b\t\020\f\032\fout_trade_no \000(\0010\000B\n3762258846R\vvarchar(50)\022&\b\n\020\f\032\ntrade_body \000(\0010\000B\000R\fvarchar(200)\0226\b\v\020]\032\vcreate_time \000(\0010\000B\0232024-05-14 00:12:49R\bdatetime\022\"\b\f\020]\032\foperate_time \000(\0010\001R\bdatetime\022!\b\r\020]\032\vexpire_time \000(\0010\001R\bdatetime\022%\b\016\020\f\032\vtracking_no \000(\0010\001R\fvarchar(100)\0220\b\017\020\373\377\377\377\377\377\377\377\377\001\032\017parent_order_id \000(\0010\001R\nbigint(20)\022!\b\020\020\f\032\aimg_url \000(\0010\001R\fvarchar(200)\022$\b\021\020\004\032\vprovince_id \000(\0010\000B\00231R\aint(20)"
+, header {
+  version: 1
+  logfileName: "mysql-bin.000056"
+  logfileOffset: 18982
+  serverId: 1
+  serverenCode: "UTF-8"
+  executeTime: 1716416299000
+  sourceType: MYSQL
+  schemaName: "spark_realtime"
+  tableName: "order_info"
+  eventLength: 151
+  eventType: INSERT
+  props {
+    key: "rowsCount"
+    value: "1"
+  }
+}
+entryType: ROWDATA
+storeValue: "\b\274\002\020\001P\000b\271\006\022\'\b\000\020\373\377\377\377\377\377\377\377\377\001\032\002id \001(\0010\000B\00213R\nbigint(20)\022+\b\001\020\f\032\tconsignee \000(\0010\000B\006HpCSFzR\fvarchar(100)\0223\b\002\020\f\032\rconsignee_tel \000(\0010\000B\v13650378898R\vvarchar(20)\022.\b\003\020\003\032\ftotal_amount \000(\0010\000B\005635.0R\rdecimal(10,2)\022(\b\004\020\f\032\forder_status \000(\0010\000B\0011R\vvarchar(20)\022+\b\005\020\373\377\377\377\377\377\377\377\377\001\032\auser_id \000(\0010\000B\0015R\nbigint(20)\022\'\b\006\020\f\032\vpayment_way \000(\0010\000B\0012R\vvarchar(20)\022A\b\a\020\f\032\020delivery_address \000(\0010\000B\024gdbUvtIjVZlgaFdxefnXR\rvarchar(1000)\022=\b\b\020\f\032\rorder_comment \000(\0010\000B\024YcooBQyWoCWbpvjHItWDR\fvarchar(200)\0221\b\t\020\f\032\fout_trade_no \000(\0010\000B\n9188700204R\vvarchar(50)\022&\b\n\020\f\032\ntrade_body \000(\0010\000B\000R\fvarchar(200)\0226\b\v\020]\032\vcreate_time \000(\0010\000B\0232024-05-14 09:20:15R\bdatetime\022\"\b\f\020]\032\foperate_time \000(\0010\001R\bdatetime\022!\b\r\020]\032\vexpire_time \000(\0010\001R\bdatetime\022%\b\016\020\f\032\vtracking_no \000(\0010\001R\fvarchar(100)\0220\b\017\020\373\377\377\377\377\377\377\377\377\001\032\017parent_order_id \000(\0010\001R\nbigint(20)\022!\b\020\020\f\032\aimg_url \000(\0010\001R\fvarchar(200)\022$\b\021\020\004\032\vprovince_id \000(\0010\000B\00211R\aint(20)"
+, header {
+  version: 1
+  logfileName: "mysql-bin.000056"
+  logfileOffset: 19870
+  serverId: 1
+  serverenCode: "UTF-8"
+  executeTime: 1716416299000
+  sourceType: MYSQL
+  schemaName: "spark_realtime"
+  tableName: "order_info"
+  eventLength: 151
+  eventType: INSERT
+  props {
+    key: "rowsCount"
+    value: "1"
+  }
+}
+entryType: ROWDATA
+storeValue: "\b\274\002\020\001P\000b\271\006\022\'\b\000\020\373\377\377\377\377\377\377\377\377\001\032\002id \001(\0010\000B\00214R\nbigint(20)\022+\b\001\020\f\032\tconsignee \000(\0010\000B\006yrpwndR\fvarchar(100)\0223\b\002\020\f\032\rconsignee_tel \000(\0010\000B\v13429982713R\vvarchar(20)\022.\b\003\020\003\032\ftotal_amount \000(\0010\000B\005225.0R\rdecimal(10,2)\022(\b\004\020\f\032\forder_status \000(\0010\000B\0011R\vvarchar(20)\022,\b\005\020\373\377\377\377\377\377\377\377\377\001\032\auser_id \000(\0010\000B\00210R\nbigint(20)\022\'\b\006\020\f\032\vpayment_way \000(\0010\000B\0011R\vvarchar(20)\022A\b\a\020\f\032\020delivery_address \000(\0010\000B\024aUurAAaDMcbYNUijuuPSR\rvarchar(1000)\022=\b\b\020\f\032\rorder_comment \000(\0010\000B\024SKYMNDBavejIMJnjkuvRR\fvarchar(200)\0221\b\t\020\f\032\fout_trade_no \000(\0010\000B\n9257000001R\vvarchar(50)\022&\b\n\020\f\032\ntrade_body \000(\0010\000B\000R\fvarchar(200)\0226\b\v\020]\032\vcreate_time \000(\0010\000B\0232024-05-14 07:00:56R\bdatetime\022\"\b\f\020]\032\foperate_time \000(\0010\001R\bdatetime\022!\b\r\020]\032\vexpire_time \000(\0010\001R\bdatetime\022%\b\016\020\f\032\vtracking_no \000(\0010\001R\fvarchar(100)\0220\b\017\020\373\377\377\377\377\377\377\377\377\001\032\017parent_order_id \000(\0010\001R\nbigint(20)\022!\b\020\020\f\032\aimg_url \000(\0010\001R\fvarchar(200)\022#\b\021\020\004\032\vprovince_id \000(\0010\000B\0017R\aint(20)"
+, header {
+  version: 1
+  logfileName: "mysql-bin.000056"
+  logfileOffset: 21325
+  serverId: 1
+  serverenCode: "UTF-8"
+  executeTime: 1716416299000
+  sourceType: MYSQL
+  schemaName: "spark_realtime"
+  tableName: "order_info"
+  eventLength: 151
+  eventType: INSERT
+  props {
+    key: "rowsCount"
+    value: "1"
+  }
+}
+entryType: ROWDATA
+storeValue: "\b\274\002\020\001P\000b\271\006\022\'\b\000\020\373\377\377\377\377\377\377\377\377\001\032\002id \001(\0010\000B\00215R\nbigint(20)\022+\b\001\020\f\032\tconsignee \000(\0010\000B\006SBcJpuR\fvarchar(100)\0223\b\002\020\f\032\rconsignee_tel \000(\0010\000B\v13148937737R\vvarchar(20)\022.\b\003\020\003\032\ftotal_amount \000(\0010\000B\005689.0R\rdecimal(10,2)\022(\b\004\020\f\032\forder_status \000(\0010\000B\0011R\vvarchar(20)\022+\b\005\020\373\377\377\377\377\377\377\377\377\001\032\auser_id \000(\0010\000B\0011R\nbigint(20)\022\'\b\006\020\f\032\vpayment_way \000(\0010\000B\0011R\vvarchar(20)\022A\b\a\020\f\032\020delivery_address \000(\0010\000B\024fNxYCRzXnyCsgEDcCFtfR\rvarchar(1000)\022=\b\b\020\f\032\rorder_comment \000(\0010\000B\024rsQYvjJEdFRrjUXdwbORR\fvarchar(200)\0221\b\t\020\f\032\fout_trade_no \000(\0010\000B\n8847551893R\vvarchar(50)\022&\b\n\020\f\032\ntrade_body \000(\0010\000B\000R\fvarchar(200)\0226\b\v\020]\032\vcreate_time \000(\0010\000B\0232024-05-14 08:10:37R\bdatetime\022\"\b\f\020]\032\foperate_time \000(\0010\001R\bdatetime\022!\b\r\020]\032\vexpire_time \000(\0010\001R\bdatetime\022%\b\016\020\f\032\vtracking_no \000(\0010\001R\fvarchar(100)\0220\b\017\020\373\377\377\377\377\377\377\377\377\001\032\017parent_order_id \000(\0010\001R\nbigint(20)\022!\b\020\020\f\032\aimg_url \000(\0010\001R\fvarchar(200)\022$\b\021\020\004\032\vprovince_id \000(\0010\000B\00216R\aint(20)"
+, header {
+  version: 1
+  logfileName: "mysql-bin.000056"
+  logfileOffset: 22846
+  serverId: 1
+  serverenCode: "UTF-8"
+  executeTime: 1716416299000
+  sourceType: MYSQL
+  schemaName: "spark_realtime"
+  tableName: "order_info"
+  eventLength: 151
+  eventType: INSERT
+  props {
+    key: "rowsCount"
+    value: "1"
+  }
+}
+entryType: ROWDATA
+storeValue: "\b\274\002\020\001P\000b\270\006\022\'\b\000\020\373\377\377\377\377\377\377\377\377\001\032\002id \001(\0010\000B\00216R\nbigint(20)\022+\b\001\020\f\032\tconsignee \000(\0010\000B\006dnhXoER\fvarchar(100)\0223\b\002\020\f\032\rconsignee_tel \000(\0010\000B\v13175624330R\vvarchar(20)\022.\b\003\020\003\032\ftotal_amount \000(\0010\000B\005842.0R\rdecimal(10,2)\022(\b\004\020\f\032\forder_status \000(\0010\000B\0011R\vvarchar(20)\022+\b\005\020\373\377\377\377\377\377\377\377\377\001\032\auser_id \000(\0010\000B\0012R\nbigint(20)\022\'\b\006\020\f\032\vpayment_way \000(\0010\000B\0011R\vvarchar(20)\022A\b\a\020\f\032\020delivery_address \000(\0010\000B\024SzSRHIvcbYOZJgNwSaxkR\rvarchar(1000)\022=\b\b\020\f\032\rorder_comment \000(\0010\000B\024KVvrwjFyCpStsEVOiySSR\fvarchar(200)\0221\b\t\020\f\032\fout_trade_no \000(\0010\000B\n7001368630R\vvarchar(50)\022&\b\n\020\f\032\ntrade_body \000(\0010\000B\000R\fvarchar(200)\0226\b\v\020]\032\vcreate_time \000(\0010\000B\0232024-05-14 06:01:20R\bdatetime\022\"\b\f\020]\032\foperate_time \000(\0010\001R\bdatetime\022!\b\r\020]\032\vexpire_time \000(\0010\001R\bdatetime\022%\b\016\020\f\032\vtracking_no \000(\0010\001R\fvarchar(100)\0220\b\017\020\373\377\377\377\377\377\377\377\377\001\032\017parent_order_id \000(\0010\001R\nbigint(20)\022!\b\020\020\f\032\aimg_url \000(\0010\001R\fvarchar(200)\022#\b\021\020\004\032\vprovince_id \000(\0010\000B\0018R\aint(20)"
+, header {
+  version: 1
+  logfileName: "mysql-bin.000056"
+  logfileOffset: 23104
+  serverId: 1
+  serverenCode: "UTF-8"
+  executeTime: 1716416299000
+  sourceType: MYSQL
+  schemaName: "spark_realtime"
+  tableName: "order_info"
+  eventLength: 156
+  eventType: INSERT
+  props {
+    key: "rowsCount"
+    value: "1"
+  }
+}
+entryType: ROWDATA
+storeValue: "\b\274\002\020\001P\000b\316\006\022\'\b\000\020\373\377\377\377\377\377\377\377\377\001\032\002id \001(\0010\000B\00217R\nbigint(20)\022+\b\001\020\f\032\tconsignee \000(\0010\000B\006QggpfIR\fvarchar(100)\0223\b\002\020\f\032\rconsignee_tel \000(\0010\000B\v13997094489R\vvarchar(20)\022.\b\003\020\003\032\ftotal_amount \000(\0010\000B\005216.0R\rdecimal(10,2)\022(\b\004\020\f\032\forder_status \000(\0010\000B\0012R\vvarchar(20)\022+\b\005\020\373\377\377\377\377\377\377\377\377\001\032\auser_id \000(\0010\000B\0011R\nbigint(20)\022\'\b\006\020\f\032\vpayment_way \000(\0010\000B\0012R\vvarchar(20)\022A\b\a\020\f\032\020delivery_address \000(\0010\000B\024tNIdqucbcftEOjBhecWAR\rvarchar(1000)\022=\b\b\020\f\032\rorder_comment \000(\0010\000B\024NmWXXUJywNzlJwqoxuHcR\fvarchar(200)\0221\b\t\020\f\032\fout_trade_no \000(\0010\000B\n3446979446R\vvarchar(50)\022&\b\n\020\f\032\ntrade_body \000(\0010\000B\000R\fvarchar(200)\0226\b\v\020]\032\vcreate_time \000(\0010\000B\0232024-05-14 20:29:31R\bdatetime\0227\b\f\020]\032\foperate_time \000(\0010\000B\0232024-05-14 21:09:35R\bdatetime\022!\b\r\020]\032\vexpire_time \000(\0010\001R\bdatetime\022%\b\016\020\f\032\vtracking_no \000(\0010\001R\fvarchar(100)\0220\b\017\020\373\377\377\377\377\377\377\377\377\001\032\017parent_order_id \000(\0010\001R\nbigint(20)\022!\b\020\020\f\032\aimg_url \000(\0010\001R\fvarchar(200)\022$\b\021\020\004\032\vprovince_id \000(\0010\000B\00218R\aint(20)"
+, header {
+  version: 1
+  logfileName: "mysql-bin.000056"
+  logfileOffset: 23367
+  serverId: 1
+  serverenCode: "UTF-8"
+  executeTime: 1716416299000
+  sourceType: MYSQL
+  schemaName: "spark_realtime"
+  tableName: "order_info"
+  eventLength: 151
+  eventType: INSERT
+  props {
+    key: "rowsCount"
+    value: "1"
+  }
+}
+entryType: ROWDATA
+storeValue: "\b\274\002\020\001P\000b\271\006\022\'\b\000\020\373\377\377\377\377\377\377\377\377\001\032\002id \001(\0010\000B\00218R\nbigint(20)\022+\b\001\020\f\032\tconsignee \000(\0010\000B\006ngTauXR\fvarchar(100)\0223\b\002\020\f\032\rconsignee_tel \000(\0010\000B\v13618879810R\vvarchar(20)\022.\b\003\020\003\032\ftotal_amount \000(\0010\000B\005163.0R\rdecimal(10,2)\022(\b\004\020\f\032\forder_status \000(\0010\000B\0011R\vvarchar(20)\022+\b\005\020\373\377\377\377\377\377\377\377\377\001\032\auser_id \000(\0010\000B\0014R\nbigint(20)\022\'\b\006\020\f\032\vpayment_way \000(\0010\000B\0011R\vvarchar(20)\022A\b\a\020\f\032\020delivery_address \000(\0010\000B\024FeDDgYyyUdIhMncznTFsR\rvarchar(1000)\022=\b\b\020\f\032\rorder_comment \000(\0010\000B\024XJFYblatRfbSgcUpRnOhR\fvarchar(200)\0221\b\t\020\f\032\fout_trade_no \000(\0010\000B\n3415056642R\vvarchar(50)\022&\b\n\020\f\032\ntrade_body \000(\0010\000B\000R\fvarchar(200)\0226\b\v\020]\032\vcreate_time \000(\0010\000B\0232024-05-14 02:11:34R\bdatetime\022\"\b\f\020]\032\foperate_time \000(\0010\001R\bdatetime\022!\b\r\020]\032\vexpire_time \000(\0010\001R\bdatetime\022%\b\016\020\f\032\vtracking_no \000(\0010\001R\fvarchar(100)\0220\b\017\020\373\377\377\377\377\377\377\377\377\001\032\017parent_order_id \000(\0010\001R\nbigint(20)\022!\b\020\020\f\032\aimg_url \000(\0010\001R\fvarchar(200)\022$\b\021\020\004\032\vprovince_id \000(\0010\000B\00223R\aint(20)"
+, header {
+  version: 1
+  logfileName: "mysql-bin.000056"
+  logfileOffset: 23931
+  serverId: 1
+  serverenCode: "UTF-8"
+  executeTime: 1716416299000
+  sourceType: MYSQL
+  schemaName: "spark_realtime"
+  tableName: "order_info"
+  eventLength: 151
+  eventType: INSERT
+  props {
+    key: "rowsCount"
+    value: "1"
+  }
+}
+entryType: ROWDATA
+storeValue: "\b\274\002\020\001P\000b\270\006\022\'\b\000\020\373\377\377\377\377\377\377\377\377\001\032\002id \001(\0010\000B\00219R\nbigint(20)\022+\b\001\020\f\032\tconsignee \000(\0010\000B\006IzxOBsR\fvarchar(100)\0223\b\002\020\f\032\rconsignee_tel \000(\0010\000B\v13174937620R\vvarchar(20)\022.\b\003\020\003\032\ftotal_amount \000(\0010\000B\005630.0R\rdecimal(10,2)\022(\b\004\020\f\032\forder_status \000(\0010\000B\0011R\vvarchar(20)\022+\b\005\020\373\377\377\377\377\377\377\377\377\001\032\auser_id \000(\0010\000B\0019R\nbigint(20)\022\'\b\006\020\f\032\vpayment_way \000(\0010\000B\0012R\vvarchar(20)\022A\b\a\020\f\032\020delivery_address \000(\0010\000B\024JiVcCEoJpHoAKYLKtNIeR\rvarchar(1000)\022=\b\b\020\f\032\rorder_comment \000(\0010\000B\024uJorRirhOuIfDzNpmoIzR\fvarchar(200)\0221\b\t\020\f\032\fout_trade_no \000(\0010\000B\n4938301411R\vvarchar(50)\022&\b\n\020\f\032\ntrade_body \000(\0010\000B\000R\fvarchar(200)\0226\b\v\020]\032\vcreate_time \000(\0010\000B\0232024-05-14 22:24:42R\bdatetime\022\"\b\f\020]\032\foperate_time \000(\0010\001R\bdatetime\022!\b\r\020]\032\vexpire_time \000(\0010\001R\bdatetime\022%\b\016\020\f\032\vtracking_no \000(\0010\001R\fvarchar(100)\0220\b\017\020\373\377\377\377\377\377\377\377\377\001\032\017parent_order_id \000(\0010\001R\nbigint(20)\022!\b\020\020\f\032\aimg_url \000(\0010\001R\fvarchar(200)\022#\b\021\020\004\032\vprovince_id \000(\0010\000B\0019R\aint(20)"
+, header {
+  version: 1
+  logfileName: "mysql-bin.000056"
+  logfileOffset: 24781
+  serverId: 1
+  serverenCode: "UTF-8"
+  executeTime: 1716416299000
+  sourceType: MYSQL
+  schemaName: "spark_realtime"
+  tableName: "order_info"
+  eventLength: 156
+  eventType: INSERT
+  props {
+    key: "rowsCount"
+    value: "1"
+  }
+}
+entryType: ROWDATA
+storeValue: "\b\274\002\020\001P\000b\316\006\022\'\b\000\020\373\377\377\377\377\377\377\377\377\001\032\002id \001(\0010\000B\00220R\nbigint(20)\022+\b\001\020\f\032\tconsignee \000(\0010\000B\006qFfKlaR\fvarchar(100)\0223\b\002\020\f\032\rconsignee_tel \000(\0010\000B\v13360684530R\vvarchar(20)\022.\b\003\020\003\032\ftotal_amount \000(\0010\000B\005513.0R\rdecimal(10,2)\022(\b\004\020\f\032\forder_status \000(\0010\000B\0012R\vvarchar(20)\022+\b\005\020\373\377\377\377\377\377\377\377\377\001\032\auser_id \000(\0010\000B\0012R\nbigint(20)\022\'\b\006\020\f\032\vpayment_way \000(\0010\000B\0011R\vvarchar(20)\022A\b\a\020\f\032\020delivery_address \000(\0010\000B\024bnifYFcykFwqrJwdejKWR\rvarchar(1000)\022=\b\b\020\f\032\rorder_comment \000(\0010\000B\024DatPVidSdOJfydUoMRYsR\fvarchar(200)\0221\b\t\020\f\032\fout_trade_no \000(\0010\000B\n8089363826R\vvarchar(50)\022&\b\n\020\f\032\ntrade_body \000(\0010\000B\000R\fvarchar(200)\0226\b\v\020]\032\vcreate_time \000(\0010\000B\0232024-05-14 13:21:26R\bdatetime\0227\b\f\020]\032\foperate_time \000(\0010\000B\0232024-05-14 13:41:06R\bdatetime\022!\b\r\020]\032\vexpire_time \000(\0010\001R\bdatetime\022%\b\016\020\f\032\vtracking_no \000(\0010\001R\fvarchar(100)\0220\b\017\020\373\377\377\377\377\377\377\377\377\001\032\017parent_order_id \000(\0010\001R\nbigint(20)\022!\b\020\020\f\032\aimg_url \000(\0010\001R\fvarchar(200)\022$\b\021\020\004\032\vprovince_id \000(\0010\000B\00218R\aint(20)"
+, header {
+  version: 1
+  logfileName: "mysql-bin.000056"
+  logfileOffset: 25584
+  serverId: 1
+  serverenCode: "UTF-8"
+  executeTime: 1716416299000
+  sourceType: MYSQL
+  schemaName: ""
+  tableName: ""
+  eventLength: 31
+}
+entryType: TRANSACTIONEND
+storeValue: "\022\0046334"
+],raw=false,rawEntries=[]]
