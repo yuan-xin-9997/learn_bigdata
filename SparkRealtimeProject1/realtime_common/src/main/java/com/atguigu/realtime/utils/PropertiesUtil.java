@@ -1,6 +1,5 @@
 package com.atguigu.realtime.utils;
 
-import java.util.Properties;
 import java.util.ResourceBundle;
 
 public class PropertiesUtil {

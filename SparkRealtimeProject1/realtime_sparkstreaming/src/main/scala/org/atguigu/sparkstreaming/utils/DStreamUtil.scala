@@ -31,7 +31,7 @@ object DStreamUtil {
       "key.deserializer" -> classOf[StringDeserializer],  // 此处写死
       "value.deserializer" -> classOf[StringDeserializer],  // 此处写死
       "group.id" -> groupId,
-      "auto.offset.reset" -> "earliest", // 只影响第一次消费，第一次消费当前组没有指定offsets，才读取此参数。如果提交过了偏移量，下一次消费会
+      "auto.offset.reset" -> "latest", // 只影响第一次消费，第一次消费当前组没有指定offsets，才读取此参数。如果提交过了偏移量，下一次消费会
           // 读取从已经提交过的位置继续往后消费
       "enable.auto.commit" -> (false: java.lang.Boolean)
     )

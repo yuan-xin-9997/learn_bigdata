@@ -7,6 +7,7 @@ import com.alibaba.otter.canal.protocol.CanalEntry;
 import com.alibaba.otter.canal.protocol.Message;
 import com.atguigu.realtime.constants.TopicConstant;
 import com.atguigu.realtime.utils.KafkaProducerUtil;
+import com.atguigu.realtime.utils.PropertiesUtil;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
@@ -40,7 +41,7 @@ public class OrderInfoClient {
         //        即canal.properties的canal.destinations   订阅的mysql实例配置文件instance.properties所在目录名
         // String username 没有 注意此处不要和properties文件里面canal服务端连mysql数据库的密码和账号混淆了
         // String password 没有 注意此处不要和properties文件里面canal服务端连mysql数据库的密码和账号混淆了
-        CanalConnector canalConnector = CanalConnectors.newSingleConnector(new InetSocketAddress("hadoop103", 11111),
+        CanalConnector canalConnector = CanalConnectors.newSingleConnector(new InetSocketAddress(PropertiesUtil.getProperty("canal.host"), Integer.parseInt(PropertiesUtil.getProperty("canal.port"))),
                 "example", null, null);
 
         // ②使用客户端对象连接 Canal server端
