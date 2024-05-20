@@ -1,0 +1,6 @@
+com\atguigu\realtime\constants\TopicConstant.class
+com\atguigu\realtime\utils\RedisUtil.class
+com\atguigu\realtime\utils\KafkaProducerUtil.class
+com\atguigu\realtime\utils\PropertiesUtil.class
+com\atguigu\realtime\constants\PrefixConstant.class
+com\atguigu\realtime\constants\DBNameConstant.class

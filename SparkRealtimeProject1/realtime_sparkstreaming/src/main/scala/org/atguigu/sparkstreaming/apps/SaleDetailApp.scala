@@ -1,26 +1,17 @@
 package org.atguigu.sparkstreaming.apps
 
-import com.alibaba.fastjson.{JSON, JSONArray, JSONObject}
-import com.atguigu.realtime.constants.{DBNameConstant, PrefixConstant, TopicConstant}
-import com.atguigu.realtime.utils.{KafkaProducerUtil, PropertiesUtil, RedisUtil}
-import com.google.gson.Gson
-import org.apache.hadoop.hbase.HBaseConfiguration
+import com.alibaba.fastjson.JSON
+import com.atguigu.realtime.constants.{DBNameConstant, TopicConstant}
+import com.atguigu.realtime.utils.PropertiesUtil
 import org.apache.kafka.clients.consumer.ConsumerRecord
-import org.apache.kafka.common.TopicPartition
-import org.apache.spark.rdd.RDD
 import org.apache.spark.streaming.dstream.{DStream, InputDStream}
 import org.apache.spark.streaming.kafka010.{CanCommitOffsets, HasOffsetRanges, OffsetRange}
 import org.apache.spark.streaming.{Minutes, Seconds, StreamingContext}
 import org.apache.spark.{SparkConf, SparkContext}
-import org.atguigu.sparkstreaming.beans.{ActionLog, CouponAlertInfo, OrderInfo, StartLog}
-import org.atguigu.sparkstreaming.utils.{DStreamUtil, DataParseUtil, JDBCUtil}
-import redis.clients.jedis.Jedis
-import org.apache.phoenix.spark._
-import org.atguigu.sparkstreaming.apps.DAUApp.{appName, batchDuration, context, groupId, parseBean, removeDuplicateLogInCommonBatch, removeDuplicateLogInHistoryBatch, runApp, topic}
+import org.atguigu.sparkstreaming.beans.{ActionLog, CouponAlertInfo}
+import org.atguigu.sparkstreaming.utils.{DStreamUtil, DataParseUtil}
 
-import java.sql.{Connection, PreparedStatement, ResultSet}
 import java.time.LocalDate
-import java.util
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.util.control.Breaks
@@ -31,14 +22,33 @@ import scala.util.control.Breaks
  * @contact: yuanxin9997@qq.com
  * @description: ${description}
  *
- *               Spark实时项目：实时预警需求
- *               非累加聚合类运算，一般都支持幂等性
+ *               Spark实时项目：购物明细需求
  *               at least once + 幂等输出  保证精确计算一次
  *               采用ES存储运算结果，在SparkConf中需要添加相关参数
+ * ----------------------------------------
+ * 购物明细：
+ *    order_detail left join order_info on order_detail.order_id=order_info.id
+ *      目的：从order_info获得当前这笔订单详情的province_id和user_id
+ *      使用 province_id和user_id 到对应的维度表去关联维度信息即可
  *
- *               todo: 本scala代码，最终会报错，ranges为null，但是未排查到原因
+ * 原则：事实表的关联，只能在流Stream中操作。原因是事实表中的事实是源源不断地产生
+ * 关联维度表时候，区分关联维度的类型：
+ *    1.几乎不变的维度表（不会insert、也不会update）：时间、日历、省份地区、
+ *    2.只会新增的记录的维度表：比如sku_info，当商家上架了新的商品时，会向表中新增商品。当商品的的信息一旦入库，信息禁止修改
+ *    3.会变化的维度表（即会有insert还有update）：用户表usert_info
+ *
+ *    对于第1种维度表，不用监控，在用的时候，直接去mysql查询即可，查询一次后，直接在App端缓存即可
+ *    对于2、3种维度表，需要实时监控变化
+ *
+ * -----------------------------------------
+ * 1. 在实时的流中消费order_detail和order_info，进行关联
+ * 2. 监控实时insert和update的用户信息（维度表），将信息从MySQL同步到Redis
+ *    join用户信息时，只需要查询Redis即可
+ * 3. 不变的维度，可以在App运行之前，一次性从MySQL查询，缓存到App端
+ *    广播变量（分布式缓存）
+ *    将从Driver端广播的数据分发到Executor端进行缓存。在每个Executor运行的Task都可以从Executor端读取数据
  */
-object AlertApp extends BaseApp {
+object SaleDetailApp extends BaseApp {
 
   // 重写消费者组、要消费的topic名
   override var groupId: String = "AlertApp"

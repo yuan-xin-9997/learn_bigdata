@@ -15,6 +15,7 @@ object DataParseUtil {
 
   // 日期格式
   val dateTimeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+  val dateTimeFormatterWithoutSeconds: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
   val dateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
   val timeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
   val hourFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH")
@@ -25,6 +26,15 @@ object DataParseUtil {
        dateTime.format(format)
      }else{
        dateTime.format(dateTimeFormatter)
+     }
+  }
+
+  def parseMillTsToDateTimeWithoutSeconds(MillTs:Long, format:DateTimeFormatter=null):String={
+    val dateTime: LocalDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(MillTs), ZoneId.of("Asia/Shanghai"))
+     if(format!=null){
+       dateTime.format(format)
+     }else{
+       dateTime.format(dateTimeFormatterWithoutSeconds)
      }
   }
 

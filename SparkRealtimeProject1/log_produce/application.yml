@@ -1,7 +1,7 @@
 # 外部配置打开
 logging.config: ./logback.xml
 #业务日期
-mock.date: "2024-05-11"
+mock.date: "2024-05-20"
 
   #模拟数据发送模式
 mock.type: "kafka"
