@@ -16,6 +16,7 @@ import redis.clients.jedis.Jedis;
 
 import java.net.InetSocketAddress;
 import java.util.List;
+import java.util.Random;
 
 /**
  * @author: yuan.xin
@@ -88,7 +89,7 @@ public class SaleDetailClient {
      * @param storeValue
      * @throws InvalidProtocolBufferException
      */
-    private static void parseData(ByteString storeValue, String tableName) throws InvalidProtocolBufferException {
+    private static void parseData(ByteString storeValue, String tableName) throws InvalidProtocolBufferException, InterruptedException {
         // rowChange 反序列化后的1行sql导致的多行反序列化结果
         CanalEntry.RowChange rowChange = CanalEntry.RowChange.parseFrom(storeValue);
         if ("order_info".equals(tableName) && rowChange.getEventType().equals(CanalEntry.EventType.INSERT)) {
@@ -108,7 +109,7 @@ public class SaleDetailClient {
      * @param topic
      * @param ifSendToKafka
      */
-    private static void sendData(CanalEntry.RowChange rowChange, String topic, boolean ifSendToKafka){
+    private static void sendData(CanalEntry.RowChange rowChange, String topic, boolean ifSendToKafka) throws InterruptedException {
         // 多行数据变化
         List<CanalEntry.RowData> rowDatasList = rowChange.getRowDatasList();
         // rowData 1行数据变化
@@ -122,11 +123,14 @@ public class SaleDetailClient {
             }
             // System.out.println(jsonObject);
             if(ifSendToKafka) {
+                // 模拟网络延迟故障，导致发送到Kafka变慢
+//                Random random = new Random();
+//                Thread.sleep(random.nextInt(5) * 1000);
                 // 将数据发送到Kafka
                 KafkaProducerUtil.sendData(jsonObject.toString(), topic);
             }else {
                 // 将数据写入Redis
-                jedis.sadd(PrefixConstant.user_info_redis_preffix + jsonObject.getString("id"), jsonObject.toString());
+                jedis.set(PrefixConstant.user_info_redis_preffix + jsonObject.getString("id"), jsonObject.toString());
             }
         }
     }
