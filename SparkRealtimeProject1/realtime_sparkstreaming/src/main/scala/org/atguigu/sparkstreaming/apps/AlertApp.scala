@@ -172,11 +172,16 @@ object AlertApp extends BaseApp {
       })
 
       // 提交偏移量
-      if (null == ranges) {
-        println("偏移量:"+ ranges)
-        System.exit(1)
+//      if (null == ranges) {
+//        println("偏移量:"+ ranges)
+//        System.exit(1)
+//      }
+//      ds.asInstanceOf[CanCommitOffsets].commitAsync(ranges)
+      if (ranges != null) {
+        ds.asInstanceOf[CanCommitOffsets].commitAsync(ranges)
+      } else {
+        println("ranges is null, skipping commit")
       }
-      ds.asInstanceOf[CanCommitOffsets].commitAsync(ranges)
 
     }
   }

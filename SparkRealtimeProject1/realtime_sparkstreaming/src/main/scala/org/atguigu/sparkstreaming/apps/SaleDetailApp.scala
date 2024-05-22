@@ -265,8 +265,18 @@ object SaleDetailApp extends BaseApp {
 //        println("偏移量:"+ ranges)
 //        System.exit(1)
 //      }
-      orderDetailDS.asInstanceOf[CanCommitOffsets].commitAsync(ODRanges)
-      orderInfoDS.asInstanceOf[CanCommitOffsets].commitAsync(OIRanges)
+      //orderDetailDS.asInstanceOf[CanCommitOffsets].commitAsync(ODRanges)
+      //orderInfoDS.asInstanceOf[CanCommitOffsets].commitAsync(OIRanges)
+      if (ODRanges != null) {
+        orderDetailDS.asInstanceOf[CanCommitOffsets].commitAsync(ODRanges)
+      } else {
+        println("ODRanges is null, skipping commit")
+      }
+      if (OIRanges != null) {
+        orderInfoDS.asInstanceOf[CanCommitOffsets].commitAsync(OIRanges)
+      } else {
+        println("OIRanges is null, skipping commit")
+      }
 
     }
   }
