@@ -22,3 +22,6 @@ export PATH=$PATH:$FLUME_HOME/bin
 #MAXWELL_HOME
 export MAXWELL_HOME=/opt/module/maxwell/
 export PATH=$PATH:$MAXWELL_HOME/bin
+#REDIS_HOME
+export REDIS_HOME=/opt/module/redis/
+export PATH=$PATH:$REDIS_HOME/bin

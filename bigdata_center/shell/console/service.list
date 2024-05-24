@@ -1,0 +1,20 @@
+##Center  System   Service    ServiceNo    IP      Args
+All       Hadoop   NameNode	      1     hadoop122
+All       Hadoop   DataNode	      1     hadoop122
+All       Hadoop   NodeManager	  1     hadoop122
+All       Hadoop   historyserver  1     hadoop122
+All       Hadoop   DataNode	       2     hadoop123
+All       Hadoop   ResourceManager 1     hadoop123
+All       Hadoop   NodeManager     2     hadoop123
+All       Hadoop   SecondaryNameNode   1     hadoop124
+All       Hadoop   DataNode            3     hadoop124
+All       Hadoop   NodeManager         3     hadoop124
+All       Hadoop   DataNode            4     hadoop125
+All       Hadoop   NodeManager         4     hadoop125
+All       Hadoop   DataNode            5     hadoop126
+All       Hadoop   NodeManager         5     hadoop126
+All       Zookeeper   Zookeeper	      1     hadoop122
+All       Zookeeper	  Zookeeper       2     hadoop123
+All       Zookeeper   Zookeeper       3     hadoop124
+All       Zookeeper   Zookeeper       4     hadoop125
+All       Zookeeper   Zookeeper       5     hadoop126
