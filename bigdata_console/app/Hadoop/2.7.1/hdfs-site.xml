@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+
+<configuration>
+	<!-- nn web端访问地址-->
+	<property>
+        <name>dfs.namenode.http-address</name>
+        <value>NameNodeHost:NameNodeWebPort</value>
+    </property>
+	<!-- 2nn web端访问地址-->
+    <property>
+        <name>dfs.namenode.secondary.http-address</name>
+        <value>SecondaryNameNodeHost:SecondaryNameNodeWebPort</value>
+    </property>
+</configuration>

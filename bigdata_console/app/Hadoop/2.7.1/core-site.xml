@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+
+<configuration>
+    <!-- 指定NameNode的地址 -->
+    <property>
+        <name>fs.defaultFS</name>
+        <value>hdfs://NameNodeHost:NameNodePort</value>
+    </property>
+
+    <!-- 指定hadoop数据的存储目录 -->
+    <property>
+        <name>hadoop.tmp.dir</name>
+        <value>DataDir</value>
+    </property>
+
+    <!-- 配置HDFS网页登录使用的静态用户为atguigu -->
+    <property>
+        <name>hadoop.http.staticuser.user</name>
+        <value>HttpStaticUser</value>
+    </property>
+</configuration>
