@@ -7,11 +7,8 @@ import org.apache.flink.api.java.operators.AggregateOperator;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.operators.FlatMapOperator;
 import org.apache.flink.api.java.operators.MapOperator;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Collector;
-
-import java.io.File;
 
 /**
  * @author: yuan.xin
@@ -19,7 +16,7 @@ import java.io.File;
  * @contact: yuanxin9997@qq.com
  * @description: flink批处理wordcount
  */
-public class Fink01_Batch_WordCount {
+public class Flink01_Batch_WordCount {
     public static void main(String[] Args) throws Exception {
         // File directory = new File("");//设定为当前文件夹
         // System.out.println(directory.getAbsolutePath());//获取绝对路径
