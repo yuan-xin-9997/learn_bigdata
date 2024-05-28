@@ -46,6 +46,8 @@ public class Flink01_Streaming_unbounded_WordCount {
                 .sum(1)
                 .print();
 
+        System.out.println("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+
         // 4. 执行
         executionEnvironment.execute();
     }
