@@ -35,6 +35,7 @@ vi ~/.bash_profile
 SHELLPATH=$HOME/shell
 PATH=.:$PATH:$HOME/bin:$SHELLPATH:$SHELLPATH/console
 export PATH
+export SHELLPATH
 
 # 添加后执行
 source  ~/.bash_profile
@@ -78,15 +79,19 @@ All       Zookeeper   Zookeeper       5     hadoop126
 - 配置sh.cfg
 
 ```
+[ConfigFile]
+SHELLPATH=$HOME/shell
+ServiceListFile=$SHELLPATH/console/service.list
+LocalRuntimeEnvDir=$HOME/run
+LoacalAppDir=$HOME/app
+
+[Bigdata]
 # 配置组件的版本信息
-JRE_HOME=$HOME/jdk1.8.0_391
+JAVA_HOME=$HOME/jdk1.8.0_391
 Hadoop_Version=2.7.1
 HADOOP_Java=jdk1.8.0_391
 Zookeeper_Version=3.5.7
 Zookeeper_Java=jdk1.8.0_391
-
-# 配置端口信息，配置所有组件的端口信息
-TODO
 ```
 
 ### 基础环境
@@ -94,6 +99,10 @@ TODO
 - 准备基础环境
 
 将JDK等基础软件服务，都放置在~/run/之下
+
+```shell
+mkdir ~/run/
+```
 
 公共Jar包（Todo）
 
@@ -110,6 +119,16 @@ TODO
 | S脚本                    | 否       | $Ctr $Sys $Srv $SrvNo $Args | startService调用           |
 | K脚本                    | 否       | $Ctr $Sys $Srv $SrvNo $Args | stopService调用            |
 | start.sh/stop.sh/show.sh | 是       | $Ctr $Sys $Srv $SrvNo $Args | 启动、停止、show的时候调用 |
+
+例如Hadoop（假设要部署的版本号为2.7.1）：
+
+```shell
+mkdir -p ~/app/Hadoop/2.7.1
+```
+
+将Hadoop安装包、脚本、配置文件等上传到该目录下
+
+![image-20240528152806453](./README.assets/image-20240528152806453.png)
 
 ## 构建基础环境、发布应用、启动应用
 

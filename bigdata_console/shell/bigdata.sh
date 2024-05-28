@@ -6,7 +6,7 @@ LocalRuntimeEnvDir=`getcfg.sh LocalRuntimeEnvDir`
 
 if [ $# -le 1 ]
 then
-	echo "usages: bigdata.sh makeBase|createService|copyApp|startService|stopService|show|run [-ctr $Ctr -sys $Sys -srv $Srv -srvno $SrvNo -cmd $CMD -args $Args]"
+	echo "usages: bigdata.sh makeBase|createService|copyApp|startService|stopService|show|run [-ctr Ctr -sys Sys -srv Srv -srvno SrvNo -cmd CMD -args Args]"
 	exit 1
 fi
 
@@ -19,11 +19,11 @@ makeBase(){
 	Args=$6
 	# 发送脚本
 	${SHELLPATH}/recmdopt.sh $Remote "mkdir -p shell"
-	${SHELLPATH}/refileopt.sh local2remote $Remote "$SHELLPATH/*" "$SHELLPATH"
+	${SHELLPATH}/refileopt.sh local2remote $Remote "$SHELLPATH/" "$SHELLPATH"
 	# 发送JDK
 	JDK_Version=`getcfg.sh $Sys_Java`
 	${SHELLPATH}/recmdopt.sh $Remote "mkdir -p ${JDK_Version}"
-	${SHELLPATH}/refileopt.sh local2remote $Remote "${LocalRuntimeEnvDir}/${JDK_Version}/*" "${JDK_Version}"
+	${SHELLPATH}/refileopt.sh local2remote $Remote "${LocalRuntimeEnvDir}/${JDK_Version}/" "${JDK_Version}"
 }
 
 createService(){
@@ -121,6 +121,8 @@ Date=`date +%Y%m%d`
 TmpListFile=/tmp/srv.list.$$.`whoami`.$Date
 TmpFile=/tmp/srv.list.tmp.$$.`whoami`.$Date
 cat $ServiceListFile > $TmpListFile
+func=$1
+shift 1
 while [ $# -gt 1 ]
 do
 	cp $TmpListFile $TmpFile
@@ -128,39 +130,39 @@ do
 	-ctr)
 			for thectr in ${ctrs}
 			do
-					cat $TmpFile |FindLine.sh -icol Center=$thectr -g >> $TmpListFile
+					cat $TmpFile |findline.sh -icol Center=$thectr -g >> $TmpListFile
 			done
 			shift 2
 			;;
 	-ictr)
 			for thectr in ${ctrs}
 			do
-					cat $TmpFile |FindLine.sh -iicol Center=$thectr -g >> $TmpListFile
+					cat $TmpFile |findline.sh -iicol Center=$thectr -g >> $TmpListFile
 			done
 			shift 2
 			;;	
 	-sys)
-			cat $TmpFile |FindLine.sh -icol System=$2 -g > $TmpListFile
+			cat $TmpFile |findline.sh -icol System=$2 -g > $TmpListFile
 			shift 2
 			;;
 	-isys)
-			cat $TmpFile |FindLine.sh -iicol System=$2 -g > $TmpListFile
+			cat $TmpFile |findline.sh -iicol System=$2 -g > $TmpListFile
 			shift 2
 			;;
 	-srv)
-			cat $TmpFile |FindLine.sh -icol Service=$2 -g > $TmpListFile
+			cat $TmpFile |findline.sh -icol Service=$2 -g > $TmpListFile
 			shift 2
 			;;
 	-isrv)
-			cat $TmpFile |FindLine.sh -iicol Service=$2 -g > $TmpListFile
+			cat $TmpFile |findline.sh -iicol Service=$2 -g > $TmpListFile
 			shift 2
 			;;
 	-srvno)
-			cat $TmpFile |FindLine.sh -icol ServiceNo=$2 -g > $TmpListFile
+			cat $TmpFile |findline.sh -icol ServiceNo=$2 -g > $TmpListFile
 			shift 2
 			;;
 	-isrvno)
-			cat $TmpFile |FindLine.sh -iicol ServiceNo=$2 -g > $TmpListFile
+			cat $TmpFile |findline.sh -iicol ServiceNo=$2 -g > $TmpListFile
 			shift 2
 			;;
 	-cmd)
@@ -182,7 +184,12 @@ do
 	esac
 done
 
-cntexpr=`wc -l $TmpListFile |awk '{print $1}'`
+# 删除TmpListFile文件标题头
+#cnt_without_head=`sed '1d' $TmpListFile`
+#echo ${cnt_without_head} > $TmpListFile
+TmpRightListFile=/tmp/right.srv.list.tmp.$$.`whoami`.$Date
+sed '1d' $TmpListFile > $TmpRightListFile
+cntexpr=`wc -l $TmpRightListFile |awk '{print $1}'`
 cnt=`expr $cntexpr`
 i=0
 j=1
@@ -193,12 +200,12 @@ do
 	result=0
 	if [ "$Args" == "" ]
 	then
-		cmdline=`head -$i $TmpListFile|tail -1`	
+		cmdline=`head -$i $TmpRightListFile|tail -1`	
 		Args=""  # todo: 从ServiceListFile的Args列读取输入参数
 		callImpl $j $func $cmdline $Args ${remote_CMD}
 		result=$?
 	else
-		cmdline=`head -$i $TmpListFile|tail -1|awk '{print $1,$2,$3,$4,$5,$6,$7 }'` 
+		cmdline=`head -$i $TmpRightListFile|tail -1|awk '{print $1,$2,$3,$4,$5,$6,$7 }'` 
 		callImpl $j $func $cmdline $Args ${remote_CMD}
 		result=$?
 	fi

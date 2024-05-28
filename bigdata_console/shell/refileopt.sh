@@ -12,7 +12,7 @@ fi
 transferMode=$1
 Remote=$2
 sourceDir=$3
-destinationDir$4
+destinationDir=$4
 SOURCE_USER=`whoami`
 DEST_USER=`whoami`
 
@@ -20,10 +20,10 @@ DEST_USER=`whoami`
 # 使用rsync进行同步  
 # 注意：你需要确保SSH密钥已经设置，以便无密码登录
 if [ "${transferMode}" == "local2remote" ];then
-	rsync -avz --progress --delete "${sourceDir}" "${DEST_USER}@${Remote}:${destinationDir}/"
+	rsync -avz --progress --delete "${sourceDir}" "${DEST_USER}@${Remote}:${destinationDir}/" > /dev/null
 	result=$?
 elif [ "${transferMode}" == "remote2local" ];then
-	rsync -avz --progress --delete "${SOURCE_USER}@${Remote}:${sourceDir}" "${destinationDir}/" 
+	rsync -avz --progress --delete "${SOURCE_USER}@${Remote}:${sourceDir}" "${destinationDir}/" > /dev/null
 	result=$?
 else
 	echo "Error: unsupported transfer mode [${transferMode}]"

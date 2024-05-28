@@ -11,5 +11,5 @@ CMD=$2
 
 source ~/shell/setenv.sh
 # echo "[$CMD] will be executed in host $host"
-ssh "$host" "$CMD"
+ssh -n "$host" "$CMD" >/dev/null
 # echo "Done"
