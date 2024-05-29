@@ -45,9 +45,13 @@ source  ~/.bash_profile
 
 - 将shell目录整体拷贝到控制台的~目录之下
 
-dos2unix ~/shell/* ~/shell/console/*
+```shell
+dos2unix ~/shell/*.* ~/shell/console/*.*
 
-chmod +x ~/shell/* ~/shell/console/*
+chmod +x ~/shell/*.sh 
+
+chmod +x ~/shell/console/*.sh
+```
 
 ### 控制台配置文件
 

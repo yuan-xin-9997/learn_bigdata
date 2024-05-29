@@ -22,9 +22,11 @@ DEST_USER=`whoami`
 if [ "${transferMode}" == "local2remote" ];then
 	rsync -avz --progress --delete "${sourceDir}" "${DEST_USER}@${Remote}:${destinationDir}/" > /dev/null
 	result=$?
+	message="${sourceDir} -> ${DEST_USER}@${Remote}:${destinationDir}/ [Done]"
 elif [ "${transferMode}" == "remote2local" ];then
 	rsync -avz --progress --delete "${SOURCE_USER}@${Remote}:${sourceDir}" "${destinationDir}/" > /dev/null
 	result=$?
+	message="${SOURCE_USER}@${Remote}:${sourceDir} -> ${destinationDir}/ [Done]"
 else
 	echo "Error: unsupported transfer mode [${transferMode}]"
 	exit 1
@@ -36,4 +38,4 @@ if [ ${result} -ne 0 ]; then
     exit 1  
 fi  
 
-echo "Synchronization completed successfully."
+echo "$message"

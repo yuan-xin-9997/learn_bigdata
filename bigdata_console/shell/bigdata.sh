@@ -21,7 +21,11 @@ makeBase(){
 	${SHELLPATH}/recmdopt.sh $Remote "mkdir -p shell"
 	${SHELLPATH}/refileopt.sh local2remote $Remote "$SHELLPATH/" "$SHELLPATH"
 	# 发送JDK
-	JDK_Version=`getcfg.sh $Sys_Java`
+	JDK_Version=`getcfg.sh ${Sys}_Java`
+	if [ -z "${JDK_Version}" ];then
+		log.sh -l error -m "cannot obtain JDK Version of ${Sys} in sh.cfg, please check!" -t all
+		exit 1
+	fi
 	${SHELLPATH}/recmdopt.sh $Remote "mkdir -p ${JDK_Version}"
 	${SHELLPATH}/refileopt.sh local2remote $Remote "${LocalRuntimeEnvDir}/${JDK_Version}/" "${JDK_Version}"
 }
@@ -47,7 +51,7 @@ copyApp(){
 	Sys_Version=`getcfg.sh ${Sys}_Version`
 	LoacalAppDir=`getcfg.sh LoacalAppDir`
 	${SHELLPATH}/recmdopt.sh $Remote "rm -f ${HOME}/${Sys}/install/*"
-	${SHELLPATH}/refileopt.sh local2remote $Remote ${LoacalAppDir}/$Sys/${Sys_Version}/* ${HOME}/${Sys}/install
+	${SHELLPATH}/refileopt.sh local2remote $Remote ${LoacalAppDir}/$Sys/${Sys_Version}/ ${HOME}/${Sys}/install
 	${SHELLPATH}/recmdopt.sh $Remote "${SHELLPATH}/install.sh $Ctr $Sys $Srv $SrvNo $Args"
 }
 

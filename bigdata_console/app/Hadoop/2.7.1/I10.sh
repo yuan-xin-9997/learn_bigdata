@@ -7,7 +7,7 @@ Srv=$3
 SrvNo=$4
 Args=$5
 
-source ${HOME}/shell/setenv.sh
+source ${HOME}/shell/setenv.sh $Sys
 ServiceListFile=`getcfg.sh ServiceListFile`
 
 BasePath=${HOME}/${Sys}
@@ -52,7 +52,7 @@ fi
 if [ "$Srv" == "NameNode" ];then
 	sed -i "s/NameNodeHost/${NameNodeHost}/g"  $CoreSiteXML
 	sed -i "s/NameNodePort/${NameNodePort}/g"  $CoreSiteXML
-	sed -i "s/DataDir/${DataDir}/g"  $CoreSiteXML
+	sed -i "s|DataDir|${DataDir}|g"  $CoreSiteXML
 	sed -i "s/HttpStaticUser/${HttpStaticUser}/g"  $CoreSiteXML
 	sed -i "s/NameNodeHost/${NameNodeHost}/g"  $HdfsSiteXML
 	sed -i "s/NameNodeWebPort/${NameNodeWebPort}/g"  $HdfsSiteXML
@@ -80,6 +80,16 @@ else
 		echo $CurrentHost >> $WorkerFile
 	fi
 fi
+
+# 将service.list中Hadoop部署的节点信息写入到workers文件中
+workers=`cat $ServiceListFile|findline.sh -icol Center=$Ctr|findline.sh -icol System=$Sys -n -ocols IP | sort -u`
+for work in ${workers}
+do
+    flag=`grep -r -F $work $WorkerFile`
+	if [ $? -eq 1 ];then
+		echo $work >> $WorkerFile
+	fi
+done
 
 # 创建Data目录
 mkdir -p ${DataDir}

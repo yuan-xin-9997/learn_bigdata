@@ -14,7 +14,7 @@ SrvNo=$4
 Args=$5
 
 BasePath=${HOME}/${Sys}
-cd $BasePath
+cd $BasePath/install
 find . -name "*.ini" -or -name "*.sh" -or -name "*.xml" -or -name "*.yml" -or -name "*.cfg" |xargs dos2unix 2>/dev/null
 find . -name "*.sh" |xargs chmod +x 2>/dev/null
 
