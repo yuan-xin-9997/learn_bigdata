@@ -22,7 +22,7 @@ public class Flink01_Streaming_unbounded_WordCount {
 
         // 2. 读取数据 切分 转换
         DataStreamSource<String> socketedTextStream = executionEnvironment.socketTextStream("hadoop102", 9999);
-        socketedTextStream.flatMap(new FlatMapFunction<String, String>() {
+        socketedTextStream.flatMap(new FlatMapFunction<String, String>() {   // 匿名内部类
             @Override
             public void flatMap(String line, Collector<String> out) throws Exception {
                 String[] words = line.split(" ");
