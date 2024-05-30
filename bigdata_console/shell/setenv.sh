@@ -18,7 +18,9 @@ ServiceListFile=`getcfg.sh ServiceListFile`
 SHELLPATH=`getcfg.sh SHELLPATH`
 
 if [ "$1" == "Hadoop" ];then
+    Sys="Hadoop"
 	BasePath=${HOME}/${Sys}
-	JAVA_HOME=`getcfg.sh ${Sys}_Java`
-	export PATH=$PATH:$BasePath/hadoop-`getcfg.sh ${Sys}_Version`/bin/:${JAVA_HOME}/bin
+	JAVA_HOME=${HOME}/`getcfg.sh ${Sys}_Java`
+	export JAVA_HOME
+	export PATH=$PATH:$BasePath/hadoop-`getcfg.sh ${Sys}_Version`/bin/:$BasePath/hadoop-`getcfg.sh ${Sys}_Version`/sbin/:${JAVA_HOME}/bin
 fi

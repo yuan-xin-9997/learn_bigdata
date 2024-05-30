@@ -1,4 +1,5 @@
 #/bin/bash
+# bigdata console Entry Point
 
 ServiceListFile=`getcfg.sh ServiceListFile`
 SHELLPATH=`getcfg.sh SHELLPATH`
@@ -20,6 +21,7 @@ makeBase(){
 	# 发送脚本
 	${SHELLPATH}/recmdopt.sh $Remote "mkdir -p shell"
 	${SHELLPATH}/refileopt.sh local2remote $Remote "$SHELLPATH/" "$SHELLPATH"
+	${SHELLPATH}/recmdopt.sh $Remote "dos2unix ${SHELLPATH}/*.* $SHELLPATH/console/*.* 2>/dev/null 1>/dev/null  ; chmod +x ${SHELLPATH}/*.sh > /dev/null"
 	# 发送JDK
 	JDK_Version=`getcfg.sh ${Sys}_Java`
 	if [ -z "${JDK_Version}" ];then
@@ -38,6 +40,7 @@ createService(){
 	SrvNo=$5
 	Args=$6
 	Sys_Version=`getcfg.sh ${Sys}_Version`
+	${SHELLPATH}/recmdopt.sh $Remote "rm -rf ${HOME}/${Sys}/*"
 	${SHELLPATH}/recmdopt.sh $Remote "mkdir -p ${HOME}/${Sys}/install"
 }
 
@@ -92,9 +95,12 @@ run(){
 	Srv=$4
 	SrvNo=$5
 	Args=$6
-	CMD=$7
 	BasePath=${HOME}/${Sys}
-	${SHELLPATH}/recmdopt.sh $Remote "${SHELLPATH}/run.sh $Ctr $Sys $Srv $SrvNo $Args $CMD"
+	if [ -n "${remote_CMD}" ];then
+    	${SHELLPATH}/recmdopt.sh $Remote "${SHELLPATH}/run.sh $Ctr $Sys $Srv $SrvNo ${remote_CMD}"
+    else
+        log.sh -l warn -m "you input command is empty!" -t console
+    fi
 }
 
 
@@ -113,10 +119,10 @@ callImpl()
 	if [ $Func != "show" ]
 	then
 		printf "No.%02d %6s %12s %18s %2s [%s]:\n" $No $Ctr $Sys $Srv $SrvNo $Remote
-		$Func $Remote $Ctr $Sys $Srv $SrvNo $*
+		$Func $Remote $Ctr $Sys $Srv $SrvNo $Args
 	else
 		printf "%2d  " $No
-		$Func $Remote $Ctr $Sys $Srv $SrvNo $*
+		$Func $Remote $Ctr $Sys $Srv $SrvNo $Args
 	fi
 }
 
@@ -206,11 +212,11 @@ do
 	then
 		cmdline=`head -$i $TmpRightListFile|tail -1`	
 		Args=""  # todo: 从ServiceListFile的Args列读取输入参数
-		callImpl $j $func $cmdline $Args ${remote_CMD}
+		callImpl $j $func $cmdline $Args
 		result=$?
 	else
 		cmdline=`head -$i $TmpRightListFile|tail -1|awk '{print $1,$2,$3,$4,$5,$6,$7 }'` 
-		callImpl $j $func $cmdline $Args ${remote_CMD}
+		callImpl $j $func $cmdline $Args
 		result=$?
 	fi
 	if [ $result -eq 0 ]

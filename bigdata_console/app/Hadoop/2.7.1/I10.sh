@@ -10,10 +10,18 @@ Args=$5
 source ${HOME}/shell/setenv.sh $Sys
 ServiceListFile=`getcfg.sh ServiceListFile`
 
+#Hadoop_Args=`getcfg.sh Hadoop_Args`
+# 加载所有Hadoop参数
+Hadoop_All_Args=`cat $ServiceListFile|findline.sh -icol Center=$Ctr|findline.sh -icol System=$Sys -n -ocols Args`
+for arg in $Hadoop_All_Args
+do
+ eval "$arg"
+done
+
 BasePath=${HOME}/${Sys}
 cd $BasePath/install
 # 解压压缩包
-tar -xzvf hadoop-`getcfg.sh ${Sys}_Version`.tar.gz -C ${BasePath}
+tar -xzvf hadoop-`getcfg.sh ${Sys}_Version`.tar.gz -C ${BasePath} >/dev/null
 
 # 拷贝脚本和配置文件到指定目录
 cp -r $BasePath/install/start.sh $BasePath/
@@ -49,26 +57,32 @@ if [ -z "$historyserverWebPort" ];then
 	historyserverWebPort=19888
 fi
 
-if [ "$Srv" == "NameNode" ];then
-	sed -i "s/NameNodeHost/${NameNodeHost}/g"  $CoreSiteXML
-	sed -i "s/NameNodePort/${NameNodePort}/g"  $CoreSiteXML
+#if [ "$Srv" == "NameNode" ];then
+	#sed -i "s/NameNodeHost/${NameNodeHost}/g"  $CoreSiteXML
+	#sed -i "s/NameNodePort/${NameNodePort}/g"  $CoreSiteXML
+	sed -i "s/NameNodeHost:NameNodePort/${NameNodeHost}:${NameNodePort}/g"  $CoreSiteXML
 	sed -i "s|DataDir|${DataDir}|g"  $CoreSiteXML
 	sed -i "s/HttpStaticUser/${HttpStaticUser}/g"  $CoreSiteXML
-	sed -i "s/NameNodeHost/${NameNodeHost}/g"  $HdfsSiteXML
-	sed -i "s/NameNodeWebPort/${NameNodeWebPort}/g"  $HdfsSiteXML
-fi
-if [ "$Srv" == "SecondaryNameNode" ];then
-	sed -i "s/SecondaryNameNodeHost/${SecondaryNameNodeHost}/g"  $HdfsSiteXML
-	sed -i "s/SecondaryNameNodeWebPort/${SecondaryNameNodeWebPort}/g"  $HdfsSiteXML
-fi
-if [ "$Srv" == "ResourceManager" ];then
+	#sed -i "s/NameNodeHost/${NameNodeHost}/g"  $HdfsSiteXML
+	#sed -i "s/NameNodeWebPort/${NameNodeWebPort}/g"  $HdfsSiteXML
+	sed -i "s/NameNodeHost:NameNodeWebPort/${NameNodeHost}:${NameNodeWebPort}/g"  $HdfsSiteXML
+#fi
+#if [ "$Srv" == "SecondaryNameNode" ];then
+	#sed -i "s/SecondaryNameNodeHost/${SecondaryNameNodeHost}/g"  $HdfsSiteXML
+	#sed -i "s/SecondaryNameNodeWebPort/${SecondaryNameNodeWebPort}/g"  $HdfsSiteXML
+	sed -i "s/SecondaryNameNodeHost:SecondaryNameNodeWebPort/${SecondaryNameNodeHost}:${SecondaryNameNodeWebPort}/g"  $HdfsSiteXML
+#fi
+#if [ "$Srv" == "ResourceManager" ];then
 	sed -i "s/ResourceManagerHost/${ResourceManagerHost}/g"  $YarnSiteXML
-fi
-if [ "$Srv" == "historyserver" ];then
-	sed -i "s/historyserverHost/${historyserverHost}/g"  $MapredSiteXML
-	sed -i "s/historyserverPort/${historyserverPort}/g"  $MapredSiteXML
-	sed -i "s/historyserverWebPort/${historyserverWebPort}/g"  $MapredSiteXML
-fi
+#fi
+#if [ "$Srv" == "historyserver" ];then
+	#sed -i "s/historyserverHost/${historyserverHost}/g"  $MapredSiteXML
+	#sed -i "s/historyserverPort/${historyserverPort}/g"  $MapredSiteXML
+	#sed -i "s/historyserverWebPort/${historyserverWebPort}/g"  $MapredSiteXML
+	sed -i "s/historyserverHost:historyserverPort/${historyserverHost}:${historyserverPort}/g"  $MapredSiteXML
+	sed -i "s/historyserverHost:historyserverWebPort/${historyserverHost}:${historyserverWebPort}/g"  $MapredSiteXML
+	sed -i "s/historyserverHost:historyserverWebPort/${historyserverHost}:${historyserverWebPort}/g"  $YarnSiteXML
+#fi
 CurrentHost=`cat $ServiceListFile|findline.sh -icol Center=$Ctr|findline.sh -icol System=$Sys |findline.sh -icol Service=$Srv |findline.sh -icol ServiceNo=$SrvNo -n -ocols IP`
 if [ ! -e "$WorkerFile" ]; then
     touch "$WorkerFile"

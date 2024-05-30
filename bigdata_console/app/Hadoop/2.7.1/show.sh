@@ -9,16 +9,16 @@ Args=$5
 
 source ${HOME}/shell/setenv.sh $Sys
 
-if [ "Srv" == "NameNode" ];then
+if [ "$Srv" == "NameNode" ];then
 	jps |grep -i namenode
-elif [ "Srv" == "DataNode" ];then
+elif [ "$Srv" == "DataNode" ];then
 	jps |grep -i datanode
-elif [ "Srv" == "SecondaryNameNode" ];then
+elif [ "$Srv" == "SecondaryNameNode" ];then
 	jps |grep -i secondarynamenode	
-elif [ "Srv" == "ResourceManager" ];then
+elif [ "$Srv" == "ResourceManager" ];then
 	jps |grep -i resourcemanager
-elif [ "Srv" == "NodeManager" ];then
+elif [ "$Srv" == "NodeManager" ];then
 	jps |grep -i nodemanager
-elif [ "Srv" == "historyserver" ];then
+elif [ "$Srv" == "historyserver" ];then
 	jps |grep -i historyserver
 fi

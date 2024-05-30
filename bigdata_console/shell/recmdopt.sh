@@ -10,6 +10,6 @@ host=$1
 CMD=$2
 
 source ~/shell/setenv.sh
-# echo "[$CMD] will be executed in host $host"
-ssh -n "$host" "$CMD" >/dev/null
+echo "[$CMD] will be executed in host $host"
+ssh -n "$host" "$CMD"
 # echo "Done"

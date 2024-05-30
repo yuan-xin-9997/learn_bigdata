@@ -47,9 +47,7 @@ source  ~/.bash_profile
 
 ```shell
 dos2unix ~/shell/*.* ~/shell/console/*.*
-
 chmod +x ~/shell/*.sh 
-
 chmod +x ~/shell/console/*.sh
 ```
 
@@ -152,7 +150,7 @@ bigdata.sh copyApp -ctr All -sys Hadoop
 bigdata.sh copyApp -ctr All -sys Zookeeper
 
 # hadoop集群格式化
-ecall.sh run -ctr All -sys Hadoop -srv NameNode -srvno 1 'hdfs namenode -format'
+bigdata.sh run -ctr All -sys Hadoop -srv NameNode -srvno 1 -cmd 'hdfs namenode -format'
 
 # 执行系统启动
 bigdata.sh startService -ctr All -sys Hadoop -srv NameNode -srvno 1
