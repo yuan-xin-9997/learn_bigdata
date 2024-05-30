@@ -52,6 +52,7 @@ public class Flink01_Streaming_unbounded_WordCount_lambda {
         System.out.println("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
 
         // 4. 执行
-        executionEnvironment.execute();
+        // 一个应用Application，包含1个Job
+        executionEnvironment.execute("Flink01_Streaming_unbounded_WordCount_lambda");
     }
 }
