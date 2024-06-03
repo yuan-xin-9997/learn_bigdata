@@ -121,7 +121,8 @@ callImpl()
 		printf "No.%02d %6s %12s %18s %2s [%s]:\n" $No $Ctr $Sys $Srv $SrvNo $Remote
 		$Func $Remote $Ctr $Sys $Srv $SrvNo $Args
 	else
-		printf "%2d  " $No
+		#printf "%2d  " $No
+		printf "No.%02d %6s %12s %18s %2s [%s]:\n" $No $Ctr $Sys $Srv $SrvNo $Remote
 		$Func $Remote $Ctr $Sys $Srv $SrvNo $Args
 	fi
 }

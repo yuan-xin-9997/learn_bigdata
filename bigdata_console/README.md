@@ -173,5 +173,50 @@ bigdata.sh startService -ctr All -sys Zookeeper -srv Zookeeper -srvno 5
 # 如果需要查看状态、停止，仅需将startService替换为show、stopService
 ```
 
+## Q&A
 
+### 配置时钟同步
+```shell
+# 注意：（1）以下命令均需要在root用户下执行，（2）主服务器与其他服务器需要能双向ping通，即网络要通，否则无法同步成功
 
+# 所有服务器安装chrony服务
+yum install chrony -y
+
+# 用于其他服务器锚定的主服务器校准时间（源服务器）
+sudo date -s "2022-01-01 12:00:00"
+
+# 主服务器（服务端）配置chrony.conf
+vi /etc/chrony.conf
+在 # Allow NTP Client access from local network. 下面添加
+allow all
+
+#  其他服务器（客户端）配置chrony.conf
+vi /etc/chrony.conf
+将 #Use public servers from the pool.ntp.org project. 下面的替换为
+server 主服务器IP ibusrt
+将 #Serve time even if not synchronized to any NTP server.注释打开
+local stratum 10
+
+# 重启服务端+客户端的chronyd服务（重启之后会自动与服务端同步时间）
+service chronyd status
+service chronyd restart
+service chronyd status
+
+# 让客户端立即时钟同步
+chronyc sources -v
+
+# 查看服务端和客户端时间是否一致
+date
+```
+### historyserver启动失败
+现象
+![historyserver启动失败](README.assets/historyserver1.png)
+检查日志文件
+```shell
+cat /home/atguigu/Hadoop/hadoop-2.7.1/logs/yarn-atguigu-historyserver-hadoop122.log
+```
+![historyserver启动失败日志](README.assets/historyserver1.png)
+
+原因
+
+解决方案

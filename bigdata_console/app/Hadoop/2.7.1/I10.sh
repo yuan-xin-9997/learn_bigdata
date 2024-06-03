@@ -1,4 +1,4 @@
-#!/bin/bash  
+#!/bin/bash
 # Hadoop系统安装脚本
 
 Ctr=$1
