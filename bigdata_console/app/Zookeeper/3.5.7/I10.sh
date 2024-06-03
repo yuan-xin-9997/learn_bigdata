@@ -9,7 +9,20 @@ Args=$5
 
 source ${HOME}/shell/setenv.sh $Sys
 ServiceListFile=`getcfg.sh ServiceListFile`
+BasePath=${HOME}/${Sys}
 
+# 解压压缩包
+cd $BasePath/install
+tar -xzvf Zookeeper-`getcfg.sh ${Sys}_Version`.tar.gz -C ${BasePath} >/dev/null
+tar -xzvf apache-zookeeper-`getcfg.sh ${Sys}_Version`-bin.tar.gz -C ${BasePath} >/dev/null
+
+# 拷贝脚本和配置文件到指定目录
+cp -r $BasePath/install/start.sh $BasePath/
+cp -r $BasePath/install/stop.sh $BasePath/
+cp -r $BasePath/install/show.sh $BasePath/
+#cp -r $BasePath/install/*.xml $BasePath/zookeeper-`getcfg.sh ${Sys}_Version`/
+
+#===========================================个性化配置==============================================
 #Zookeeper_Args=`getcfg.sh Zookeeper_Args`
 # 加载所有Zookeeper参数
 Zookeeper_All_Args=`cat $ServiceListFile|findline.sh -icol Center=$Ctr|findline.sh -icol System=$Sys -n -ocols Args`
@@ -18,26 +31,28 @@ do
  eval "$arg"
 done
 
-BasePath=${HOME}/${Sys}
-cd $BasePath/install
-# 解压压缩包
-tar -xzvf Zookeeper-`getcfg.sh ${Sys}_Version`.tar.gz -C ${BasePath} >/dev/null
-tar -xzvf apache-zookeeper-`getcfg.sh ${Sys}_Version`-bin.tar.gz -C ${BasePath} >/dev/null
-
-# 拷贝脚本和配置文件到指定目录
-cp -r $BasePath/install/start.sh $BasePath/
-cp -r $BasePath/install/stop.sh $BasePath/
-cp -r $BasePath/install/show.sh $BasePath/
-cp -r $BasePath/install/*.xml $BasePath/zookeeper-`getcfg.sh ${Sys}_Version`/
+# 软件家目录
+Zookeeper_Home=${BasePath}/apache-zookeeper-`getcfg.sh ${Sys}_Version`-bin/
 
 # 创建数据目录
 zkDataPath=`getcfg.sh zkDataPath`
 if [ -z "$zkDataPath" ];then
-	NameNodePort=8020
+	zkDataPath=$BasePath/zkData/
 fi
-mkdir -p $BasePath/zkData/
+mkdir -p $zkDataPath
 
-# 修改配置文件
+# 创建myid文件
+echo "$SrvNo" > $zkDataPath/myid
+
+# 修改zoo.cfg配置文件
+cd ${Zookeeper_Home}/conf
+mv zoo_sample.cfg zoo.cfg
+ZooCfg=${Zookeeper_Home}/conf/zoo.cfg
+
+#修改数据存储路径配置，default dataDir=/tmp/zookeeper
+sed -i "s|dataDir=/tmp/zookeeper|${DataDir}|g"  $CoreSiteXML
+
+
 CoreSiteXML=$BasePath/Zookeeper-`getcfg.sh ${Sys}_Version`/etc/Zookeeper/core-site.xml
 HdfsSiteXML=$BasePath/Zookeeper-`getcfg.sh ${Sys}_Version`/etc/Zookeeper/hdfs-site.xml
 YarnSiteXML=$BasePath/Zookeeper-`getcfg.sh ${Sys}_Version`/etc/Zookeeper/yarn-site.xml
