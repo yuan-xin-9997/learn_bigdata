@@ -13,8 +13,8 @@ All       Hadoop   DataNode            4     hadoop125
 All       Hadoop   NodeManager         4     hadoop125
 All       Hadoop   DataNode            5     hadoop126
 All       Hadoop   NodeManager         5     hadoop126
-All       Zookeeper   Zookeeper	      1     hadoop122
-All       Zookeeper	  Zookeeper       2     hadoop123
-All       Zookeeper   Zookeeper       3     hadoop124
-All       Zookeeper   Zookeeper       4     hadoop125
-All       Zookeeper   Zookeeper       5     hadoop126
+All       Zookeeper   Zookeeper	      1     hadoop122  clientPort=2181;ZkElectionPort=3888;ZkQuorumPort=2888
+All       Zookeeper	  Zookeeper       2     hadoop123  clientPort=2181;ZkElectionPort=3888;ZkQuorumPort=2888
+All       Zookeeper   Zookeeper       3     hadoop124  clientPort=2181;ZkElectionPort=3888;ZkQuorumPort=2888
+All       Zookeeper   Zookeeper       4     hadoop125  clientPort=2181;ZkElectionPort=3888;ZkQuorumPort=2888
+All       Zookeeper   Zookeeper       5     hadoop126  clientPort=2181;ZkElectionPort=3888;ZkQuorumPort=2888

@@ -44,6 +44,17 @@ createService(){
 	${SHELLPATH}/recmdopt.sh $Remote "mkdir -p ${HOME}/${Sys}/install"
 }
 
+removeService(){
+	Remote=$1
+	Ctr=$2
+	Sys=$3
+	Srv=$4
+	SrvNo=$5
+	Args=$6
+	Sys_Version=`getcfg.sh ${Sys}_Version`
+	${SHELLPATH}/recmdopt.sh $Remote "rm -rf ${HOME}/${Sys}/*"
+}
+
 copyApp(){
 	Remote=$1
 	Ctr=$2

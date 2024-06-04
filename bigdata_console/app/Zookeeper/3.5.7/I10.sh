@@ -13,14 +13,12 @@ BasePath=${HOME}/${Sys}
 
 # 解压压缩包
 cd $BasePath/install
-tar -xzvf Zookeeper-`getcfg.sh ${Sys}_Version`.tar.gz -C ${BasePath} >/dev/null
 tar -xzvf apache-zookeeper-`getcfg.sh ${Sys}_Version`-bin.tar.gz -C ${BasePath} >/dev/null
 
 # 拷贝脚本和配置文件到指定目录
 cp -r $BasePath/install/start.sh $BasePath/
 cp -r $BasePath/install/stop.sh $BasePath/
 cp -r $BasePath/install/show.sh $BasePath/
-#cp -r $BasePath/install/*.xml $BasePath/zookeeper-`getcfg.sh ${Sys}_Version`/
 
 #===========================================个性化配置==============================================
 #Zookeeper_Args=`getcfg.sh Zookeeper_Args`
@@ -46,36 +44,36 @@ echo "$SrvNo" > $zkDataPath/myid
 
 # 修改zoo.cfg配置文件
 cd ${Zookeeper_Home}/conf
-mv zoo_sample.cfg zoo.cfg
+cp zoo_sample.cfg zoo.cfg
 ZooCfg=${Zookeeper_Home}/conf/zoo.cfg
 
-#修改数据存储路径配置，default dataDir=/tmp/zookeeper
-sed -i "s|dataDir=/tmp/zookeeper|${DataDir}|g"  $CoreSiteXML
+# 修改数据存储路径配置，default dataDir=/tmp/zookeeper
+sed -i "s|dataDir=/tmp/zookeeper|dataDir=${zkDataPath}|g"  $ZooCfg
+# 修改ZK客户端使用的端口
+if [ -z "$clientPort" ];then
+	clientPort=2181
+fi
+sed -i "s|clientPort=2181|clientPort=${clientPort}|g"  $ZooCfg
 
-
-CoreSiteXML=$BasePath/Zookeeper-`getcfg.sh ${Sys}_Version`/etc/Zookeeper/core-site.xml
-HdfsSiteXML=$BasePath/Zookeeper-`getcfg.sh ${Sys}_Version`/etc/Zookeeper/hdfs-site.xml
-YarnSiteXML=$BasePath/Zookeeper-`getcfg.sh ${Sys}_Version`/etc/Zookeeper/yarn-site.xml
-MapredSiteXML=$BasePath/Zookeeper-`getcfg.sh ${Sys}_Version`/etc/Zookeeper/mapred-site.xml
-WorkerFile=$BasePath/Zookeeper-`getcfg.sh ${Sys}_Version`/etc/Zookeeper/workers
-NameNodeHost=`cat $ServiceListFile|findline.sh -icol Center=$Ctr|findline.sh -icol System=$Sys |findline.sh -icol Service=NameNode |findline.sh -icol ServiceNo=1 -n -ocols IP`
-if [ -z "$NameNodePort" ];then
-	NameNodePort=8020
-fi
-DataDir=$BasePath/data/
-HttpStaticUser=`whoami`
-if [ -z "$NameNodeWebPort" ];then
-	NameNodeWebPort=9870
-fi
-SecondaryNameNodeHost=`cat $ServiceListFile|findline.sh -icol Center=$Ctr|findline.sh -icol System=$Sys |findline.sh -icol Service=SecondaryNameNode |findline.sh -icol ServiceNo=1 -n -ocols IP`
-if [ -z "$SecondaryNameNodeWebPort" ];then
-	SecondaryNameNodeWebPort=9868
-fi
-ResourceManagerHost=`cat $ServiceListFile|findline.sh -icol Center=$Ctr|findline.sh -icol System=$Sys |findline.sh -icol Service=ResourceManager |findline.sh -icol ServiceNo=1 -n -ocols IP`
-historyserverHost=`cat $ServiceListFile|findline.sh -icol Center=$Ctr|findline.sh -icol System=$Sys |findline.sh -icol Service=historyserver |findline.sh -icol ServiceNo=1 -n -ocols IP`
-if [ -z "$historyserverPort" ];then
-	historyserverPort=10020
-fi
-if [ -z "$historyserverWebPort" ];then
-	historyserverWebPort=19888
-fi
+# 在zoo.cfg增加集群配置信息
+# 获取所有ZK节点机
+echo "" >> $ZooCfg
+echo "#######################cluster##########################" >> $ZooCfg
+awk -v Ctr=$Ctr -v Sys=$Sys '!/^#/ {if($1==Ctr && ($2==Sys))  {print $1,$2,$3,$4,$5,$6}}' ${ServiceListFile} | while read ctr sys srv srvno nodeip args
+do
+    # echo '====>' $ctr   $sys   $srv   $srvno   $nodeip  $args
+    flag=`grep -r -F $nodeip $ZooCfg`
+    if [ $? -eq 1 ];then
+        for arg in ${args}
+        do
+            eval "$arg"
+        done
+        if [ -z "$ZkQuorumPort" ];then
+	        ZkQuorumPort=2888
+        fi
+        if [ -z "$ZkElectionPort" ];then
+	        ZkElectionPort=3888
+        fi
+        echo "server.${srvno}=${nodeip}:${ZkQuorumPort}:${ZkElectionPort}" >> $ZooCfg
+    fi
+done
