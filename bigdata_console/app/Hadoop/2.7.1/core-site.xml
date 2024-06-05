@@ -19,4 +19,22 @@
         <name>hadoop.http.staticuser.user</name>
         <value>HttpStaticUser</value>
     </property>
+
+    <!--for hive-->
+    <!-- 配置该指定用户(superUser)允许通过代理访问的主机节点 -->
+    <property>
+        <name>hadoop.proxyuser.superUser.hosts</name>
+        <value>*</value>
+    </property>
+    <!-- 配置该指定用户(superUser)允许通过代理用户所属组 -->
+    <property>
+        <name>hadoop.proxyuser.superUser.groups</name>
+        <value>*</value>
+    </property>
+    <!-- 配置指定用户(superUser)允许通过代理的用户-->
+    <property>
+        <name>hadoop.proxyuser.superUser.users</name>
+        <value>*</value>
+    </property>
+
 </configuration>

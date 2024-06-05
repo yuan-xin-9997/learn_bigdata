@@ -1,5 +1,5 @@
 ##Center  System   Service    ServiceNo    IP      Args
-All       Hadoop   NameNode	      1     hadoop122  NameNodePort=8020;NameNodeWebPort=9870
+All       Hadoop   NameNode	      1     hadoop122  NameNodePort=8020;NameNodeWebPort=9870;superUser=atguigu
 All       Hadoop   DataNode	      1     hadoop122
 All       Hadoop   NodeManager	  1     hadoop122
 All       Hadoop   historyserver  1     hadoop122  historyserverPort=10020;historyserverWebPort=19888
@@ -18,3 +18,8 @@ All       Zookeeper	  Zookeeper       2     hadoop123  clientPort=2181;ZkElectio
 All       Zookeeper   Zookeeper       3     hadoop124  clientPort=2181;ZkElectionPort=3888;ZkQuorumPort=2888
 All       Zookeeper   Zookeeper       4     hadoop125  clientPort=2181;ZkElectionPort=3888;ZkQuorumPort=2888
 All       Zookeeper   Zookeeper       5     hadoop126  clientPort=2181;ZkElectionPort=3888;ZkQuorumPort=2888
+All       MySQL    MySQL            1       hadoop122
+All       MySQL    MySQL            2       hadoop123
+All       MySQL    MySQL            3       hadoop124
+All       MySQL    MySQL            4       hadoop125
+All       MySQL    MySQL            5       hadoop126

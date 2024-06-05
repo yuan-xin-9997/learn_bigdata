@@ -45,6 +45,43 @@
 		<name>yarn.log-aggregation.retain-seconds</name>
 		<value>604800</value>
 	</property>
-	
+
+    <!--for hive-->
+    <!-- NodeManager使用内存数，默认8G，修改为4G内存（16g物理内存的改为2g或者是3g） -->
+    <property>
+        <description>Amount of physical memory, in MB, that can be allocated
+        for containers. If set to -1 and
+        yarn.nodemanager.resource.detect-hardware-capabilities is true, it is
+        automatically calculated(in case of Windows and Linux).
+        In other cases, the default is 8192MB.
+        </description>
+        <name>yarn.nodemanager.resource.memory-mb</name>
+        <value>NodeManagerUseMemoryMB</value>
+    </property>
+    <!-- 容器最小内存，默认512M -->
+    <property>
+        <description>The minimum allocation for every container request at the RM	in MBs.
+                Memory requests lower than this will be set to the value of this	property.
+                Additionally, a node manager that is configured to have less memory	than this value
+        </description>
+        <name>yarn.scheduler.minimum-allocation-mb</name>
+        <value>NMContainerMinMemoryMB</value>
+    </property>
+
+    <!-- 容器最大内存，默认8G，修改为4G -->
+    <property>
+        <description>The maximum allocation for every container request at the RM	in MBs.
+                Memory requests higher than this will throw an	InvalidResourceRequestException.
+        </description>
+        <name>yarn.scheduler.maximum-allocation-mb</name>
+        <value>NMContainerMaxMemoryMB</value>
+    </property>
+
+    <!-- 虚拟内存检查，默认打开，修改为关闭（使用虚拟内存） -->
+    <property>
+        <description>Whether virtual memory limits will be enforced for containers.</description>
+        <name>yarn.nodemanager.vmem-check-enabled</name>
+        <value>false</value>
+    </property>
 	
 </configuration>

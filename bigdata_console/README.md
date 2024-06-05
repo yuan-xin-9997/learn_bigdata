@@ -2,10 +2,17 @@
 
 本文件夹是由shell等脚本语言编写的控制台，用以控制大数据相关系统的发布、启停等操作。
 
+此套脚本在以下版本和环境下经过测试：
+- Kylin Linux Advanced Server release V10 (SP3) /(Lance)-aarch64-Build20/20221125
+- java version "1.8.0_391" ARM64
+- Hadoop 2.7.1
+- Zookeeper 3.5.7
+- Hive 3.1.2
+- mysql-8.4.0-linux-glibc2.28-aarch64.tar
+
 使用方式：
 
 1. 将shell文件夹放到~
-2. 将profile.d目录下的脚本放到/etc/profile.d/
 3. 对脚本进行dos2unix和chmod
 4. 在~/.bash_profile增加`export PATH=~/shell/:$PATH`
 5. 集群规划参见“BigData服务器集群规划.xlsx”
@@ -21,6 +28,41 @@ root用户登录到6台服务器
 - 创建atguigu用户，并设置密码
 - 建立console到5台集群节点机atguigu用户的信任
 - 建立5台集群节点机atguigu用户相互之间的信任
+
+### 系统配置
+
+1. 配置atguigu用户免密sudo执行命令
+
+```shell
+# root用户下执行，以下命令在所有机器均执行一遍
+visudo
+# 在root ALL=(ALL) NOPASSWD: ALL 这一行下面增加
+atguigu	ALL=(ALL) 	NOPASSWD: ALL
+# 把下面这行前面的#删除
+%wheel  ALL=(ALL)       NOPASSWD: ALL
+# 保存退出
+# 切换到atguigu用户下进行验证
+sudo ls -l /
+```
+2. 在控制台机器安装ansible
+```shell
+# atguigu用户登录到控制台服务器
+# 安装ansible
+sudo yum install -y ansible
+
+# 配置ansible
+sudo vi /etc/ansible/hosts
+# 在文件末尾配置内容如下
+[Hadoop]
+hadoop122
+hadoop123
+hadoop124
+hadoop125
+hadoop126
+
+# 检查ansible配置成功
+ansible all -m ping
+```
 
 ## 准备控制台
 
@@ -218,5 +260,7 @@ cat /home/atguigu/Hadoop/hadoop-2.7.1/logs/yarn-atguigu-historyserver-hadoop122.
 ![historyserver启动失败日志](README.assets/historyserver1.png)
 
 原因
+todo
 
 解决方案
+todo

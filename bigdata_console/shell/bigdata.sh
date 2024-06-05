@@ -25,8 +25,12 @@ makeBase(){
 	# 发送JDK
 	JDK_Version=`getcfg.sh ${Sys}_Java`
 	if [ -z "${JDK_Version}" ];then
-		log.sh -l error -m "cannot obtain JDK Version of ${Sys} in sh.cfg, please check!" -t all
-		exit 1
+		log.sh -l warn -m "cannot obtain JDK Version of ${Sys} in sh.cfg, please check!" -t all
+		JDK_Version=`getcfg.sh JAVA_HOME`
+		if [ -z "${JDK_Version}" ];then
+		    log.sh -l error -m "cannot obtain JAVA_HOME in sh.cfg, please check!" -t all
+		    exit 1
+		fi
 	fi
 	${SHELLPATH}/recmdopt.sh $Remote "mkdir -p ${JDK_Version}"
 	${SHELLPATH}/refileopt.sh local2remote $Remote "${LocalRuntimeEnvDir}/${JDK_Version}/" "${JDK_Version}"
@@ -41,7 +45,7 @@ createService(){
 	Args=$6
 	Sys_Version=`getcfg.sh ${Sys}_Version`
 	${SHELLPATH}/recmdopt.sh $Remote "rm -rf ${HOME}/${Sys}/*"
-	${SHELLPATH}/recmdopt.sh $Remote "mkdir -p ${HOME}/${Sys}/install"
+	${SHELLPATH}/recmdopt.sh $Remote "mkdir -p ${HOME}/${Sys}/; cd ${HOME}/${Sys}/; mkdir install logs"
 }
 
 removeService(){
@@ -52,7 +56,8 @@ removeService(){
 	SrvNo=$5
 	Args=$6
 	Sys_Version=`getcfg.sh ${Sys}_Version`
-	${SHELLPATH}/recmdopt.sh $Remote "rm -rf ${HOME}/${Sys}/*"
+	# ${SHELLPATH}/recmdopt.sh $Remote "rm -rf ${HOME}/${Sys}/*"
+	${SHELLPATH}/recmdopt.sh $Remote "${SHELLPATH}/remove.sh $Ctr $Sys $Srv $SrvNo $Args"
 }
 
 copyApp(){

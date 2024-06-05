@@ -6,12 +6,12 @@ then
 	exit 1
 fi
 
-source ${HOME}/shell/setenv.sh
 Ctr=$1
 Sys=$2
 Srv=$3
 SrvNo=$4
 Args=$5
+source ${HOME}/shell/setenv.sh $Sys
 
 BasePath=${HOME}/${Sys}
 cd $BasePath

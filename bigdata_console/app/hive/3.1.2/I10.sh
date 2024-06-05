@@ -1,5 +1,5 @@
 #!/bin/bash
-# Hadoop系统安装脚本
+# hive系统安装脚本
 
 Ctr=$1
 Sys=$2
@@ -29,6 +29,7 @@ tar -xzvf hadoop-`getcfg.sh ${Sys}_Version`.tar.gz -C ${BasePath} >/dev/null
 cp -r $BasePath/install/start.sh $BasePath/
 cp -r $BasePath/install/stop.sh $BasePath/
 cp -r $BasePath/install/show.sh $BasePath/
+# cp -r $BasePath/install/remove.sh $BasePath/
 cp -r $BasePath/install/*.xml $BasePath/hadoop-`getcfg.sh ${Sys}_Version`/etc/hadoop/
 
 # 修改配置文件
