@@ -1,0 +1,83 @@
+        this(
+                dataStream,
+                new PartitionTransformation<>(
+                        dataStream.getTransformation(),
+                        new KeyGroupStreamPartitioner<>(
+                                keySelector,
+                                StreamGraphGenerator.DEFAULT_LOWER_BOUND_MAX_PARALLELISM)),
+                                
+                                keySelector是我们自己实现的逻辑
+                                StreamGraphGenerator.DEFAULT_LOWER_BOUND_MAX_PARALLELISM 128
+                                
+                                
+                keySelector,
+                keyType);
+                
+                
+                
+     public int selectChannel(SerializationDelegate<StreamRecord<T>> record) {
+        K key;
+        try {
+            key = keySelector.getKey(record.getInstance().getValue());
+            
+            此处就是自定义的getkey逻辑
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Could not extract key from " + record.getInstance().getValue(), e);
+        }
+        return KeyGroupRangeAssignment.assignKeyToParallelOperator(
+                key, maxParallelism, numberOfChannels);
+                当前的数据给的key，128, 2
+    }
+    
+                                                   当前的数据给的key，  128,          2
+    public static int assignKeyToParallelOperator(Object key, int maxParallelism, int parallelism) {
+        Preconditions.checkNotNull(key, "Assigned key must not be null!");
+        return computeOperatorIndexForKeyGroup(
+                maxParallelism, parallelism, assignToKeyGroup(key, maxParallelism));
+                128，             2          ，assignToKeyGroup(key,128)
+                128,2,105（先hash再murmurhash%128之后的结果 一定是小于128的  一定是0-127之间的数字）
+    }
+    
+ ---------------------
+ 
+     public static int computeOperatorIndexForKeyGroup(
+            int maxParallelism, int parallelism, int keyGroupId) {
+        return keyGroupId * parallelism / maxParallelism;
+        我们现在有两个chanel 或者说 有两个分区  或者说有两个通道 
+        keyGroupId(0-127之间的数字)* 2 / 128 = ?? int  只可能是 0 ，1 
+        什么时候是0  什么时候是1
+        0-63 这64个数字 的时候 computeOperatorIndexForKeyGroup返回值是0
+        64-127的时候 这也是64个数字   computeOperatorIndexForKeyGroup返回值是1
+        
+        当key为0时  keyGroupId为94 返回1
+        当key为1时  keyGroupId为86 返回1
+        当key为”偶数“时  keyGroupId为105 返回1
+        当key为“奇数”时  keyGroupId为19 返回0
+        
+        
+        通道是以 0 和 1 来计算 
+        
+        但是 从控制台打印的结果来看 起始位置为1号分区 
+        
+    }
+ 
+ 
+ 
+ ----------------------
+    
+    
+    public static int assignToKeyGroup(Object key, int maxParallelism) {
+        Preconditions.checkNotNull(key, "Assigned key must not be null!");
+        return computeKeyGroupForKeyHash(key.hashCode(), maxParallelism);
+                                          key.hashCode()， 128
+    }
+    
+    
+    public static int computeKeyGroupForKeyHash(int keyHash, int maxParallelism) {
+        return MathUtils.murmurHash(keyHash) % maxParallelism;
+        
+    }
+    
+    
+    
