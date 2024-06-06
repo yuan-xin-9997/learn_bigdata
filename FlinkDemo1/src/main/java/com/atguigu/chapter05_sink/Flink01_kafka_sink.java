@@ -1,20 +1,21 @@
-package com.atguigu.chapter05_transform;
+package com.atguigu.chapter05_sink;
 
+import com.alibaba.fastjson.JSON;
 import com.atguigu.chapter05_source.WaterSensor;
-import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 
 import java.util.ArrayList;
 
 /**
  * @author: yuan.xin
- * @createTime: 2024/06/05 21:13
+ * @createTime: 2024/06/06 21:49
  * @contact: yuanxin9997@qq.com
- * @description: Flink 简单聚合算子
+ * @description: Flink Kafka sink
  */
-public class Flink05_aggregate {
+public class Flink01_kafka_sink {
     public static void main(String[] Args) {
         // Web UI 端口设置
         Configuration conf = new Configuration();
@@ -23,7 +24,7 @@ public class Flink05_aggregate {
         // 1. 创建流式执行环境
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        // 设置并行度
+        // 设置并行度，如果不设置，默认并行度=CPU核心数
         env.setParallelism(1);
 
         // Flink程序主逻辑
@@ -33,23 +34,13 @@ public class Flink05_aggregate {
         waterSensors.add(new WaterSensor("sensor_1", 160924000006L, 50));
         waterSensors.add(new WaterSensor("sensor_2", 160924000003L, 10));
         waterSensors.add(new WaterSensor("sensor_2", 160924000005L, 30));
-
         DataStreamSource<WaterSensor> waterSensorDS = env.fromCollection(waterSensors);
-        waterSensorDS.keyBy(new KeySelector<WaterSensor, String>() {
-            @Override
-            public String getKey(WaterSensor ws) throws Exception {
-                return ws.getId();
-            }
-        })
-//                .sum("vc")
-//                .min("vc")
-//                .minBy("vc")
-//                .max("vc")
-                .maxBy("vc")
-                .print();
 
-        // TODO： min max minBy maxBy 区别是什么？
-
+        // 2. 输出到Kafka
+        waterSensorDS.keyBy(WaterSensor::getId)
+                .sum("vc")
+                .map(bean -> JSON.toJSONString(bean))
+                .addSink(new FlinkKafkaProducer<>())
 
         // 懒加载
         try {
