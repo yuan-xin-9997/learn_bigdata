@@ -264,3 +264,44 @@ todo
 
 解决方案
 todo
+
+### 常见文件copy命令
+
+1. cp - 默认会覆盖同名文件
+```shell
+[atguigu@hadoop125 test]$ cat a.txt 
+bb
+[atguigu@hadoop125 test]$ cat data/a.txt
+aa
+[atguigu@hadoop125 test]$ cp data/a.txt .
+[atguigu@hadoop125 test]$ cat a.txt 
+aa
+[atguigu@hadoop125 test]$
+
+# 相关选项
+-f, --force                  如果有已存在的目标文件且无法打开，则将其删除并重试
+                                 （该选项在与 -n 选项同时使用时将被忽略）
+-i, --interactive            覆盖前询问（使前面的 -n 选项失效）
+-R, -r, --recursive		递归复制目录及其子目录内的所有内容
+```
+
+2. tar - 解压时默认覆盖同名文件
+```shell
+[atguigu@hadoop125 test]$ cat a.txt 
+aa
+[atguigu@hadoop125 test]$ tar -czvf a.tgz a.txt
+a.txt
+[atguigu@hadoop125 test]$ ls
+a  a.tgz  a.txt  data
+[atguigu@hadoop125 test]$ echo "" > a.txt 
+[atguigu@hadoop125 test]$ cat a.txt
+
+[atguigu@hadoop125 test]$ tar -xzvf a.tgz -C .
+a.txt
+[atguigu@hadoop125 test]$ cat a.txt 
+aa
+[atguigu@hadoop125 test]$ 
+```
+
+3. scp - 默认会覆盖同名文件
+4. rz - 默认不会覆盖同名文件

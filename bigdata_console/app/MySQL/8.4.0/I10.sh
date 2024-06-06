@@ -8,6 +8,7 @@ SrvNo=$4
 Args=$5
 
 source ${HOME}/shell/setenv.sh $Sys
+source ${HOME}/shell/utils.sh $Ctr $Sys $Srv $SrvNo $Args
 ServiceListFile=`getcfg.sh ServiceListFile`
 
 # 先加载所有MySQL参数
@@ -33,13 +34,14 @@ cp -r $BasePath/install/remove.sh $BasePath/
 
 #===========================================个性化配置==============================================
 # 软件家目录
-dir_path=$(find "${BasePath}" -maxdepth 1 -type d -name "mysql-`getcfg.sh ${Sys}_Version`*" -print -quit)
-if [ -n "${dir_path}" ];then
-    MySQL_HOME=${dir_path}
-else
-    echo "[error] MySQL安装失败，未找到安装目录"
-    exit 1
-fi
+# dir_path=$(find "${BasePath}" -maxdepth 1 -type d -name "mysql-`getcfg.sh ${Sys}_Version`*" -print -quit)
+# if [ -n "${dir_path}" ];then
+#     MySQL_HOME=${dir_path}
+# else
+#     echo "[error] MySQL安装失败，未找到安装目录"
+#     exit 1
+# fi
+MySQL_HOME=`getHomePath $Ctr $Sys $Srv $SrvNo $Args`
 
 # 创建mysql用户和用户组
 sudo groupadd mysql

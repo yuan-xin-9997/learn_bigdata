@@ -36,6 +36,31 @@ makeBase(){
 	${SHELLPATH}/refileopt.sh local2remote $Remote "${LocalRuntimeEnvDir}/${JDK_Version}/" "${JDK_Version}"
 }
 
+delBase(){
+	Remote=$1
+	Ctr=$2
+	Sys=$3
+	Srv=$4
+	SrvNo=$5
+	Args=$6
+	# 删除shell
+	${SHELLPATH}/recmdopt.sh $Remote "rm -rf  ${HOME}/shell"
+	# 删除JDK
+	JDK_Version=`getcfg.sh ${Sys}_Java`
+	if [ -z "${JDK_Version}" ];then
+		log.sh -l warn -m "cannot obtain JDK Version of ${Sys} in sh.cfg, please check!" -t all
+		JDK_Version=`getcfg.sh JAVA_HOME`
+		if [ -z "${JDK_Version}" ];then
+		    log.sh -l error -m "cannot obtain JAVA_HOME in sh.cfg, please check!" -t all
+		fi
+	fi
+	if [ ! -z "${JDK_Version}"];then
+    	${SHELLPATH}/recmdopt.sh $Remote "rm -rf  ${HOME}/${JDK_Version}"
+	fi
+	# 删除系统目录
+	${SHELLPATH}/recmdopt.sh $Remote "rm -rf  ${HOME}/${Sys}"
+}
+
 createService(){
 	Remote=$1
 	Ctr=$2
@@ -117,6 +142,26 @@ run(){
     else
         log.sh -l warn -m "you input command is empty!" -t console
     fi
+}
+
+cleanLog(){
+    Remote=$1
+	Ctr=$2
+	Sys=$3
+	Srv=$4
+	SrvNo=$5
+	Args=$6
+	${SHELLPATH}/recmdopt.sh $Remote "rm -rf ${HOME}/${Sys}/logs/*"
+}
+
+cleanData(){
+    Remote=$1
+	Ctr=$2
+	Sys=$3
+	Srv=$4
+	SrvNo=$5
+	Args=$6
+	${SHELLPATH}/recmdopt.sh $Remote "rm -rf ${HOME}/${Sys}/data/*"  # todo
 }
 
 
