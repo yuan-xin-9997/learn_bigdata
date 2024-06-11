@@ -1,6 +1,14 @@
-# 大数据集群构建步骤
+# 大数据集群组件运维平台
 
-本文件夹是由shell等脚本语言编写的控制台，用以控制大数据相关系统的发布、启停等操作。
+由shell等脚本语言编写的控制台，用以控制大数据相关系统的发布、启停等操作。
+
+## Features
+
+- 命令行方式管理大数据集群相关组件
+- 统一的管理方式管控主流组件
+- 高度、精细化自定义支持
+
+## 支持的大数据组件及基础服务版本
 
 此套脚本在以下版本和环境下经过测试：
 - Kylin Linux Advanced Server release V10 (SP3) /(Lance)-aarch64-Build20/20221125
@@ -10,17 +18,47 @@
 - Hive 3.1.2
 - mysql-8.4.0-linux-glibc2.28-aarch64.tar
 
-使用方式：
+## Supported
 
-1. 将shell文件夹放到~
-3. 对脚本进行dos2unix和chmod
-4. 在~/.bash_profile增加`export PATH=~/shell/:$PATH`
-5. 集群规划参见“BigData服务器集群规划.xlsx”
+-[ ] Hadoop
+-[ ] Zookeeper
 
 
+## Agenda
+- [ ]  支持MySQL发布、启动、停止、初始化
+- [ ] 支持hive发布、启动、停止
+- [ ] 支持Flume发布、启动、停止
+- [ ] 支持Kafka发布、启动、停止
+- [ ] 支持发布Scala运行环境
+- [ ] 支持Spark集群模式发布、启动、停止
+- [ ] 支持Redis发布、启动、停止
+- [ ] 支持ElasticSearch发布、启动、停止
+- [ ] 支持HBase发布、启动、停止
+- [ ] 支持SparkStreaming发布、启动、停止
+- [ ] 支持Flink集群模式发布、启动、停止
+- [ ] 支持GreenPlum发布、启动、停止、初始化
+- [ ] 支持Clickhouse发布、启动、停止
+- [ ] 编写组件打包规范，增加I脚本编写说明
+- [ ] 支持启动前、启动后、停止前、停止后、show前、show后自定义脚本调用，增加脚本编写规范
+- [ ] 增加sh.cfg, service.list配置文件配置说明
+- [ ] show 高亮区别显示是否正常运行或离线运行
+- [ ] 修改自定义show.sh start.sh stop.sh 脚本规范、返回规范
+- [ ] 支持show显示相关端口
+- [ ] 支持Java Web类、Python Web、Nginx类应用发布、启动、停止
 
-## 准备机器
+## How to use
 
+1. 准备机器
+2. 操作系统配置
+3. 控制台准备
+4. 构建基础环境
+5. 发布应用
+6. 启动、停止、显示应用状态
+
+## Example
+
+### 准备机器
+集群规划参见“BigData服务器集群规划.xlsx”
 ![image-20240524161558479](./README.assets/image-20240524161558479.png)
 
 root用户登录到6台服务器
@@ -64,9 +102,9 @@ hadoop126
 ansible all -m ping
 ```
 
-## 准备控制台
+### 准备控制台
 
-### 环境变量
+#### 环境变量
 
 - atguigu用户登录控制台，修改~/.bash_profile，增加
 
@@ -78,12 +116,13 @@ SHELLPATH=$HOME/shell
 PATH=.:$PATH:$HOME/bin:$SHELLPATH:$SHELLPATH/console
 export PATH
 export SHELLPATH
+sh ~/prepareEnv.sh
 
 # 添加后执行
 source  ~/.bash_profile
 ```
 
-### 控制台脚本
+#### 控制台脚本
 
 - 将shell目录整体拷贝到控制台的~目录之下
 
@@ -93,7 +132,7 @@ chmod +x ~/shell/*.sh
 chmod +x ~/shell/console/*.sh
 ```
 
-### 控制台配置文件
+#### 控制台配置文件
 
 - 配置~/shell/console/service.list。假设当前需要部署Hadoop和Zookeeper服务。则配置如下：
 
@@ -138,7 +177,7 @@ Zookeeper_Version=3.5.7
 Zookeeper_Java=jdk1.8.0_391
 ```
 
-### 基础环境
+#### 基础环境
 
 - 准备基础环境
 
@@ -150,7 +189,7 @@ mkdir ~/run/
 
 公共Jar包（Todo）
 
-### 大数据组件发布文件
+#### 大数据组件发布文件
 
 - 准备发布包
 
@@ -174,7 +213,7 @@ mkdir -p ~/app/Hadoop/2.7.1
 
 ![image-20240528152806453](./README.assets/image-20240528152806453.png)
 
-## 构建基础环境、发布应用、启动应用
+### 构建基础环境、发布应用、启动应用
 
 登录atguigu@console，执行：
 
@@ -305,3 +344,7 @@ aa
 
 3. scp - 默认会覆盖同名文件
 4. rz - 默认不会覆盖同名文件
+
+### KVM创建虚拟机
+参见文档（建议使用Typora打开）：
+[Linux服务器上创建Linux虚拟机步骤.md](Linux%B7%FE%CE%F1%C6%F7%C9%CF%B4%B4%BD%A8Linux%D0%E9%C4%E2%BB%FA%B2%BD%D6%E8.md)

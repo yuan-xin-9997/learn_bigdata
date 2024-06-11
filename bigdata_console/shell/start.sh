@@ -18,4 +18,4 @@ cd $BasePath
 find . -name "*.ini" -or -name "*.sh" -or -name "*.xml" -or -name "*.yml" -or -name "*.cfg" |xargs dos2unix 2>/dev/null
 find . -name "*.sh" |xargs chmod +x 2>/dev/null
 
-sh start.sh $Ctr $Sys $Srv $SrvNo $Args  >/dev/null
+sh start.sh $Ctr $Sys $Srv $SrvNo $Args
