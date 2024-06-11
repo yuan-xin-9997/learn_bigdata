@@ -7,16 +7,21 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
+import org.apache.flink.streaming.connectors.kafka.KafkaSerializationSchema;
+import org.apache.kafka.clients.producer.ProducerRecord;
 
+import javax.annotation.Nullable;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Properties;
 
 /**
  * @author: yuan.xin
  * @createTime: 2024/06/06 21:49
  * @contact: yuanxin9997@qq.com
- * @description: Flink Kafka sink
+ * @description: Flink Kafka sink 自定义序列化构造器
  */
-public class Flink01_kafka_sink {
+public class Flink01_kafka_sink_UDS {
     public static void main(String[] Args) {
         // Web UI 端口设置
         Configuration conf = new Configuration();
@@ -38,12 +43,23 @@ public class Flink01_kafka_sink {
         DataStreamSource<WaterSensor> waterSensorDS = env.fromCollection(waterSensors);
 
         // 2. 输出到Kafka
+        Properties sinkConfig = new Properties();
+        sinkConfig.setProperty("bootstrap.servers", "hadoop102:9092,hadoop103:9092,hadoop104:9092");
         waterSensorDS.keyBy(WaterSensor::getId)
                 .sum("vc")
-                .map(bean -> JSON.toJSONString(bean))
-                .addSink(new FlinkKafkaProducer<>("hadoop102:9092,hadoop103:9092,hadoop104:9092",  // Kafka集群地址
-                        "s1",  // 生产者topic
-                        new SimpleStringSchema()));   // 消息序列化方式
+                .addSink(new FlinkKafkaProducer<WaterSensor>(
+                        "default",  // 默认topic，一般用不上
+                        new KafkaSerializationSchema<WaterSensor>() {  // 自定义序列化器
+                            @Override
+                            public ProducerRecord<byte[], byte[]> serialize(WaterSensor element, @Nullable Long timestamp) {
+                                String s = JSON.toJSONString(element);
+                                return new ProducerRecord<>("s1", s.getBytes(StandardCharsets.UTF_8));
+                            }
+                        },
+                        sinkConfig,  // Kafka配置
+                        FlinkKafkaProducer.Semantic.AT_LEAST_ONCE  // 一致性语义：现在只能传入至少1次
+                        )
+                );
 
         // 懒加载
         try {
