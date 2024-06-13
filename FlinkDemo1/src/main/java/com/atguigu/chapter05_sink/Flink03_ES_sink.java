@@ -23,9 +23,9 @@ import java.util.List;
  * @author: yuan.xin
  * @createTime: 2024/06/11 21:10
  * @contact: yuanxin9997@qq.com
- * @description: Flink Sink ElasticSearch 无界流
+ * @description: Flink Sink ElasticSearch 有界流
  */
-public class Flink03_Redis_ES_sink_1 {
+public class Flink03_ES_sink {
     public static void main(String[] Args) {
         // Web UI 端口设置
         Configuration conf = new Configuration();
@@ -38,12 +38,14 @@ public class Flink03_Redis_ES_sink_1 {
         env.setParallelism(1);
 
         // Flink程序主逻辑
-        SingleOutputStreamOperator<WaterSensor> result = env.socketTextStream("hadoop102", 9999)
-                .map(line -> {
-                    String[] data = line.split(",");
-                    return new WaterSensor(data[0], Long.parseLong(data[1]), Integer.parseInt(data[2]));
-                })
-                .keyBy(WaterSensor::getId)
+        ArrayList<WaterSensor> waterSensors = new ArrayList<>();
+        waterSensors.add(new WaterSensor("sensor_1", 160924000002L, 20));
+        waterSensors.add(new WaterSensor("sensor_1", 160924000004L, 50));
+        waterSensors.add(new WaterSensor("sensor_1", 160924000006L, 50));
+        waterSensors.add(new WaterSensor("sensor_2", 160924000003L, 10));
+        waterSensors.add(new WaterSensor("sensor_2", 160924000005L, 30));
+        DataStreamSource<WaterSensor> waterSensorDS = env.fromCollection(waterSensors);
+        SingleOutputStreamOperator<WaterSensor> result = waterSensorDS.keyBy(WaterSensor::getId)
                 .sum("vc");
         // 写入到ES
         List<HttpHost> hosts = Arrays.asList(

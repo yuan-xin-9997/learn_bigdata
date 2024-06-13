@@ -124,6 +124,21 @@
             <version>${flink.version}</version>
         </dependency>
 
+<!--        MySQL JDBC 连接驱动-->
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>5.1.49</version>
+        </dependency>
+
+<!--        Flink JDBC 驱动-->
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-connector-jdbc_2.11</artifactId>
+            <version>1.13.6</version>
+        </dependency>
+
+
     </dependencies>
 
     <!--打包插件-->
