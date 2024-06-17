@@ -61,7 +61,7 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-log4j12</artifactId>
             <version>${slf4j.version}</version>
-        <scope>provided</scope>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
@@ -84,7 +84,7 @@
             <version>${flink.version}</version>
         </dependency>
 
-<!--        water sensor 类使用-->
+<!--        water sensor 类使用 Lombok 注解，能够简化Java Bean的生成-->
         <!-- https://mvnrepository.com/artifact/org.projectlombok/lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>

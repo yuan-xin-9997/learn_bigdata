@@ -2,6 +2,7 @@ package com.atguigu.chapter05_source;
 
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -11,13 +12,18 @@ import lombok.NoArgsConstructor;
  * @contact: yuanxin9997@qq.com
  * @description:
  */
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
+@Data  // 自动生成getter和setter方法
+@NoArgsConstructor  // 自动生成无参构造方法
+@AllArgsConstructor  // 自动生成全参构造方法
+//@Builder  // 自动生成建造者模式
 public class WaterSensor {
     private String id;
     private Long ts;
     private Integer vc;
+
+    public static void main(String[] args) {
+
+    }
 }
 //public class WaterSensor {
 //    private String id;
