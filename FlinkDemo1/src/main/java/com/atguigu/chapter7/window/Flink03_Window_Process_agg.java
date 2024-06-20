@@ -1,10 +1,8 @@
-package com.atguigu.chapter7;
+package com.atguigu.chapter7.window;
 
 import com.atguigu.chapter05_source.WaterSensor;
 import com.atguigu.utils.AtguiguUtil;
-import com.beust.ah.A;
 import org.apache.flink.api.common.functions.AggregateFunction;
-import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;

@@ -1,4 +1,4 @@
-package com.atguigu.chapter7;
+package com.atguigu.chapter7.window;
 
 import com.atguigu.chapter05_source.WaterSensor;
 import org.apache.flink.configuration.Configuration;
