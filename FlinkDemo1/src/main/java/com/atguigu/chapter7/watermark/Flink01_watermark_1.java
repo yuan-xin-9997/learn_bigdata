@@ -50,6 +50,9 @@ public class Flink01_watermark_1 {
         // 设置并行度，如果不设置，默认并行度=CPU核心数
         env.setParallelism(1);
 
+        // 设置时间语义
+        // env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+
         // Flink程序主逻辑
         env
                 .socketTextStream("hadoop102", 9999)
