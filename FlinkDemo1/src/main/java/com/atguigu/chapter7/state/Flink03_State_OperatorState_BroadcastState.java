@@ -50,6 +50,7 @@ import java.util.List;
  * 3. 这样的算子可以具有不同名称的多个广播状态。
  */
 public class Flink03_State_OperatorState_BroadcastState {
+
     public static void main(String[] Args) {
         // Web UI 端口设置
         Configuration conf = new Configuration();
@@ -89,6 +90,17 @@ public class Flink03_State_OperatorState_BroadcastState {
                     @Override
                     public void processElement(String value, BroadcastProcessFunction<String, String, String>.ReadOnlyContext ctx, Collector<String> out) throws Exception {
                         ReadOnlyBroadcastState<String, String> state = ctx.getBroadcastState(bcStateDescriptor);
+                        String conf = state.get("aSwitch");
+                        if ("1".equals(conf)) {
+                            out.collect(value + " 使用1号逻辑...");
+                        } else if ("2".equals(conf)) {
+                            out.collect(value + " 使用2号逻辑...");
+                        } else if ("3".equals(conf)) {
+                            out.collect(value + " 使用3号逻辑...");
+                        } else{
+                            out.collect(value + " 使用default号逻辑...");
+                        }
+                        System.out.println("processElement");
                     }
 
                     /**
@@ -107,10 +119,10 @@ public class Flink03_State_OperatorState_BroadcastState {
                         // 获取广播状态，把配置流信息写入到广播状态中
                         BroadcastState<String, String> state = ctx.getBroadcastState(bcStateDescriptor);
                         state.put("aSwitch", value);
+                        System.out.println("processBroadcastElement");
                     }
                 })
                 .print();
-
 
         // 懒加载
         try {
@@ -120,63 +132,4 @@ public class Flink03_State_OperatorState_BroadcastState {
         }
 
     }
-
-    // Operator State 需要实现 实现CheckpointedFunction接口
-    public static class MyMapFunction implements MapFunction<String, String>, CheckpointedFunction {
-
-        List<String> words = new ArrayList<String>();  // 读取的数据
-        private ListState<String> wordsState;  // 列表状态
-
-        @Override
-        public String map(String line) throws Exception {
-
-            // 手动抛出异常
-            if (line.contains("x")) {
-                throw new RuntimeException("包含x，手动抛出异常");
-            }
-
-            String[] data = line.split(" ");
-            words.addAll(Arrays.asList(data));
-            return words.toString();
-        }
-
-        /**
-         * 保存状态，此函数会周期性的执行
-         * 每个并行度都会周期性的执行
-         *
-         * @param ctx the context for drawing a snapshot of the operator
-         * @throws Exception
-         */
-        @Override
-        public void snapshotState(FunctionSnapshotContext ctx) throws Exception {
-            // 把数据存入到算子状态（列表状态）
-            //wordsState.clear(); // 清空状态
-            //wordsState.addAll(words);  // 把数据存入到列表状态中
-            wordsState.update(words);  // 更新状态=wordsState.clear()+wordsState.addAll()
-
-            // System.out.println("snapshotState" + System.currentTimeMillis());
-        }
-
-        /**
-         * 初始化状态
-         * 程序启动的时候，每个并行度执行一次
-         * 可以把状态中的数据恢复到Java集合中
-         *
-         * @param ctx the context for initializing the operator
-         * @throws Exception
-         */
-        @Override
-        public void initializeState(FunctionInitializationContext ctx) throws Exception {
-            // 从状态恢复数据    提升成员变量快捷键：Ctrl + alt + f
-            // 获取列表状态
-            wordsState = ctx.getOperatorStateStore().getUnionListState(new ListStateDescriptor<String>("wordsState", String.class));
-            // 从列表状态中获取数据
-            Iterable<String> it = wordsState.get();
-            for (String word : it) {
-                words.add(word);
-            }
-            System.out.println("initializeState" + System.currentTimeMillis());
-        }
-    }
-
 }
