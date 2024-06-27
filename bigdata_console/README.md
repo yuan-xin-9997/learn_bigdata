@@ -29,7 +29,7 @@
 - [ ] 支持hive发布、启动、停止
 - [ ] 支持Flume发布、启动、停止
 - [ ] 支持Kafka发布、启动、停止
-- [ ] 支持发布Scala运行环境
+- [ ] 支持发布Scala运行环境、Python运行环境、Java运行环境、C/C++运行环境
 - [ ] 支持Spark集群模式发布、启动、停止
 - [ ] 支持Redis发布、启动、停止
 - [ ] 支持ElasticSearch发布、启动、停止
@@ -270,6 +270,8 @@ sudo date -s "2022-01-01 12:00:00"
 vi /etc/chrony.conf
 在 # Allow NTP Client access from local network. 下面添加
 allow all
+server 自己的IP ibusrt
+local stratum 10
 
 #  其他服务器（客户端）配置chrony.conf
 vi /etc/chrony.conf
@@ -283,11 +285,21 @@ service chronyd status
 service chronyd restart
 service chronyd status
 
-# 让客户端立即时钟同步
+# 让客户端立即时钟同步，要确保输出结果不是^?，否则表示没有同步成功
 chronyc sources -v
 
 # 查看服务端和客户端时间是否一致
 date
+
+## Q&A
+# 1. 客户端执行chronyc sources -v时，无法成功同步时间
+# 检查客户端和服务端网络是否连通
+# 检查服务端防火墙123 UDP端口是否开放
+# 确认已经按照上述步骤修改配置，切完全一致
+# 检查服务端chronyd日志，通常在路径/var/log/chrony/下
+# 检查服务端和客户端chronyd的版本是否一致（chronyd --version）
+# selinux是否开启没有关系
+# 如果date -s设置了客户端的时间，要想让客户端同步，需要restart客户端的chronyd服务（即手工设置时间会导致时钟同步服务失效，具体可以查看客户端chronyd的日志）
 ```
 ### historyserver启动失败
 现象
