@@ -136,7 +136,7 @@ public class Flink11_Kafka_Flink_Kafka_end_to_end_exactlyonce {
 
         // 懒加载
         try {
-            env.execute();
+            env.execute("Flink11_Kafka_Flink_Kafka_end_to_end_exactlyonce");
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
