@@ -92,7 +92,7 @@ mkdir -p /var/lib/libvirt/images
 # 将操作系统镜像iso文件上传到该目录中
 ```
 
-### 命令行创建虚拟机
+### 命令行方式创建虚拟机
 
 todo
 
@@ -498,10 +498,6 @@ todo
 4. 克隆完成功之后，账号密码沿用原来的虚拟机
 5. 需要修改IP，再reboot
 
-### 命令行方式创建虚拟机
-
-todo
-
 ### 设置yum源（repo源）
 
 1. 准备源（注意要和当前操作系统适配）
@@ -545,8 +541,6 @@ enabled=1
 gpgcheck=0
 ```
 
-
-
 3. 清空缓存、生成新缓存
 
 ```shell
@@ -568,7 +562,263 @@ yum install -y epel-release
 # 检查仓库是否启用
 ```
 
+### 配置网卡（+双网卡）
 
+```shell
+# 网卡配置文件路径：/etc/sysconfig/network-scripts
+cd /etc/sysconfig/network-scripts
+
+# 配置第一张网卡，配置文件名以实际为准
+vi ifcfg-enp1s0
+第一张网卡
+注释网关 GATEWAY=10.2.73.78
+
+# 配置第二张网卡，配置文件名以实际为准
+vi ifcfg-enp2s0
+第二张网卡
+修改或增加如下配置
+ONBOOT=yes
+IPADDR=10.2.76.235
+PREFIX=28
+GATEWAY=10.2.76.238
+
+# 配置静态路由文件
+# 也是在/etc/sysconfig/network-scripts路径之下
+# vim route-ens3，添加如下内容之后，保存退出
+172.19.96.0/19 via 10.2.73.190
+172.21.96.0/19 via 10.2.73.190
+172.24.96.0/19 via 10.2.73.190
+10.2.64.0/20 via 10.2.73.190
+10.2.80.0/24 via 10.2.73.190
+10.2.50.0/23 via 10.2.73.190
+10.2.52.0/23 via 10.2.73.190
+
+# 重启两张网卡
+nmcli con re && nmcli con up ens3 && nmcli con up ens4
+
+# 检查Linux服务本机静态路由表
+route -n
+
+# 重启服务器（不需要重启）
+# reboot
+
+# 验证网卡是否配置成功
+yum install traceroute -y
+traceroute 8.8.8.8
+# 预计结果，走第二张网卡的默认网关
+[root@redis3 network-scripts]# traceroute 8.8.8.8
+traceroute to 8.8.8.8 (8.8.8.8), 30 hops max, 60 byte packets
+ 1  _gateway (10.2.76.238)  1.002 ms  0.824 ms  0.963 ms
+ 2  * * *
+ 3  * * *
+ 4  10.5.0.57 (10.5.0.57)  1.714 ms  1.689 ms  1.745 ms
+ 5  10.5.0.9 (10.5.0.9)  24.776 ms  24.759 ms  24.979 ms
+
+
+# 举例
+[root@localhost network-scripts]# cat ifcfg-ens3
+TYPE=Ethernet
+PROXY_METHOD=none
+BROWSER_ONLY=no
+BOOTPROTO=none
+DEFROUTE=yes
+IPV4_FAILURE_FATAL=no
+#IPV6INIT=yes
+#IPV6_AUTOCONF=yes
+#IPV6_DEFROUTE=yes
+#IPV6_FAILURE_FATAL=no
+#IPV6_ADDR_GEN_MODE=stable-privacy
+NAME=ens3
+UUID=4c47ff9d-8792-4e07-9a98-6fa1ee52b287
+DEVICE=ens3
+ONBOOT=yes
+IPADDR=10.2.73.184
+PREFIX=27
+#GATEWAY=10.2.73.190
+#IPV6_PRIVACY=no
+
+[root@localhost network-scripts]# cat ifcfg-ens4
+TYPE=Ethernet
+PROXY_METHOD=none
+BROWSER_ONLY=no
+BOOTPROTO=none
+DEFROUTE=yes
+IPV4_FAILURE_FATAL=no
+#IPV6INIT=yes
+#IPV6_AUTOCONF=yes
+#IPV6_DEFROUTE=yes
+#IPV6_FAILURE_FATAL=no
+#IPV6_ADDR_GEN_MODE=stable-privacy
+NAME=ens4
+UUID=6ff37a27-ac22-415b-8b03-54aa6bd126c4
+DEVICE=ens4
+ONBOOT=yes
+IPADDR=10.2.76.225
+PREFIX=28
+GATEWAY=10.2.76.238
+
+[root@localhost network-scripts]# ll
+总用量 12
+-rw-r--r-- 1 root root 350  7月  2 10:35 ifcfg-ens3
+-rw-r--r-- 1 root root 332  7月  2 10:30 ifcfg-ens4
+-rw-r--r-- 1 root root 209  7月  2 10:38 route-ens3
+[root@localhost network-scripts]# cat route-ens3 
+172.19.96.0/19 via 10.2.73.190
+172.21.96.0/19 via 10.2.73.190
+172.24.96.0/19 via 10.2.73.190
+10.2.64.0/20 via 10.2.73.190
+10.2.80.0/24 via 10.2.73.190
+10.2.50.0/23 via 10.2.73.190
+10.2.52.0/23 via 10.2.73.190
+[root@localhost network-scripts]# route -n
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+0.0.0.0         10.2.76.238     0.0.0.0         UG    103    0        0 ens4
+10.2.50.0       10.2.73.190     255.255.254.0   UG    102    0        0 ens3
+10.2.52.0       10.2.73.190     255.255.254.0   UG    102    0        0 ens3
+10.2.64.0       10.2.73.190     255.255.240.0   UG    102    0        0 ens3
+10.2.73.160     0.0.0.0         255.255.255.224 U     102    0        0 ens3
+10.2.76.224     0.0.0.0         255.255.255.240 U     103    0        0 ens4
+10.2.80.0       10.2.73.190     255.255.255.0   UG    102    0        0 ens3
+172.19.96.0     10.2.73.190     255.255.224.0   UG    102    0        0 ens3
+172.21.96.0     10.2.73.190     255.255.224.0   UG    102    0        0 ens3
+172.24.96.0     10.2.73.190     255.255.224.0   UG    102    0        0 ens3
+[root@localhost network-scripts]#
+```
+
+```reStructuredText
+route - 显示并设置Linux中静态路由表
+route命令 用来显示并设置Linux内核中的网络路由表，route命令设置的路由主要是静态路由。要实现两个不同的子网之间的通信，需要一台连接两个网络的路由器，或者同时位于两个网络的网关来实现。
+在Linux系统中设置路由通常是为了解决以下问题：该服务器在一个局域网中，局域网中有一个网关，为了能够让机器访问Internet，那么就需要将这台机器的ip地址设置为Linux机器的默认路由。要注意的是，直接在命令行下执行route命令来添加路由，不会永久保存，当网卡重启或者机器重启之后，该路由就失效了；可以在/etc/rc.local中添加route命令来保证该路由设置永久有效。
+
+实例
+显示当前路由：
+
+[root@localhost ~]# route
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+112.124.12.0    *               255.255.252.0   U     0      0        0 eth1
+10.160.0.0      *               255.255.240.0   U     0      0        0 eth0
+192.168.0.0     10.160.15.247   255.255.0.0     UG    0      0        0 eth0
+172.16.0.0      10.160.15.247   255.240.0.0     UG    0      0        0 eth0
+10.0.0.0        10.160.15.247   255.0.0.0       UG    0      0        0 eth0
+default         112.124.15.247  0.0.0.0         UG    0      0        0 eth1
+
+[root@localhost ~]# route -n
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+112.124.12.0    0.0.0.0         255.255.252.0   U     0      0        0 eth1
+10.160.0.0      0.0.0.0         255.255.240.0   U     0      0        0 eth0
+192.168.0.0     10.160.15.247   255.255.0.0     UG    0      0        0 eth0
+172.16.0.0      10.160.15.247   255.240.0.0     UG    0      0        0 eth0
+10.0.0.0        10.160.15.247   255.0.0.0       UG    0      0        0 eth0
+0.0.0.0         112.124.15.247  0.0.0.0         UG    0      0        0 eth1
+Destination：指定目标网络或IP地址。这里列出了将要判断路由的目标网络或IP地址。
+Gateway：指定路由要发送数据包的下一跳网关的IP地址。如果没有下一跳，这部分通常为0.0.0.0或者*（通配符）。
+Genmask：指定目标网络的网络掩码。用于判断目标地址属于哪个网络。
+Flags为路由标志，标记当前网络节点的状态，Flags标志说明：
+  U Up表示此路由当前为启动状态。
+  H Host，表示此网关为一主机。
+  G Gateway，表示此网关为一路由器。
+  R Reinstate Route，使用动态路由重新初始化的路由。
+  D Dynamically,此路由是动态性地写入。
+  M Modified，此路由是由路由守护程序或导向器动态修改。
+  ! 表示此路由当前为关闭状态。
+Metric：用于选择最佳路由的度量标准。一般情况下，数值越小表示位置越好。
+Ref：路由的引用计数，表示有多少个路由指向同一路由网关。
+Use：路由的使用计数，表示有多少个数据包已经使用了这条路由。
+Iface：指定由这个路由器决定的数据包将要从哪个网卡发送出去。
+```
+
+```reStructuredText
+nmcli命令 是 NetworkManager client 网络管理客户端。
+
+语法
+nmcli [OPTIONS] OBJECT { COMMAND | help }
+选项
+OPTIONS
+  -t[erse]                                  # terse output 简洁的输出
+  -p[retty]                                 # pretty output 漂亮的输出
+  -m[ode] tabular|multiline                 # output mode  输出模式
+  -f[ields] <field1,field2,...>|all|common  # specify fields to output 指定要输出的字段
+  -e[scape] yes|no                          # escape columns separators in values 在值中转义列分隔符
+  -n[ocheck]                                # 不要检查nmcli和NetworkManager版本
+  -a[sk]                                    # 要求缺少参数
+  -w[ait] <seconds>                         # 设置超时等待整理操作
+  -v[ersion]                                # 显示程序版本
+  -h[elp]                                   # 打印此帮助
+
+OBJECT
+  g[eneral]       NetworkManager的一般状态和操作
+  n[etworking]    整体组网控制
+  r[adio]         NetworkManager切换开关
+  c[onnection]    NetworkManager的连接
+  d[evice]        由NetworkManager管理的设备
+  a[gent]         NetworkManager秘密代理或polkit代理
+ 
+nmcli c 和 nmcli con的区别：nmcli c：这是nmcli connection的简写形式。nmcli con：这是nmcli connection的全称。
+
+[root@redis3 network-scripts]# nmcli c
+NAME  UUID                                  TYPE      DEVICE 
+ens4  6ff37a27-ac22-415b-8b03-54aa6bd126c4  ethernet  ens4   
+ens3  4c47ff9d-8792-4e07-9a98-6fa1ee52b287  ethernet  ens3   
+[root@redis3 network-scripts]# 
+[root@redis3 network-scripts]# 
+[root@redis3 network-scripts]# nmcli con
+NAME  UUID                                  TYPE      DEVICE 
+ens4  6ff37a27-ac22-415b-8b03-54aa6bd126c4  ethernet  ens4   
+ens3  4c47ff9d-8792-4e07-9a98-6fa1ee52b287  ethernet  ens3   
+[root@redis3 network-scripts]#
+```
+
+```reStructuredText
+ifconfig 
+
+[root@redis3 ~]# ifconfig 
+ens3: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+        inet 10.2.73.185  netmask 255.255.255.224  broadcast 10.2.73.191
+        ether 52:54:00:1d:2e:1e  txqueuelen 1000  (Ethernet)
+        RX packets 2053238709  bytes 355241172500 (330.8 GiB)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 2179916745  bytes 409390858642 (381.2 GiB)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+
+ens4: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+        inet 10.2.76.227  netmask 255.255.255.240  broadcast 10.2.76.239
+        ether 52:54:00:7f:4a:aa  txqueuelen 1000  (Ethernet)
+        RX packets 995366  bytes 59722320 (56.9 MiB)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 139  bytes 10076 (9.8 KiB)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+
+lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536
+        inet 127.0.0.1  netmask 255.0.0.0
+        loop  txqueuelen 1000  (Local Loopback)
+        RX packets 550425419  bytes 95296272346 (88.7 GiB)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 550425419  bytes 95296272346 (88.7 GiB)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+
+ifconfig是用来配置和显示网络接口信息的命令。以下是Linux ifconfig命令的输出详细介绍：
+1. 第一行：显示网络接口的名称（通常以"eth"开头，如eth0）及接口的状态（UP表示接口已启用，DOWN表示接口未启用）。
+2. 第二行：显示接口的IPv4地址。
+3. 第三行：显示接口的IPv6地址。
+4. 第四行：显示接口的MAC地址（物理地址）。
+5. 第五行：显示接口的广播地址。
+6. 第六行：显示子网掩码。
+7. 第七行：显示MTU（最大传输单元），即数据包的最大长度。
+8. 后续行：可能还会显示接口相关的一些统计信息，如数据包的传输数量、错误数量等。
+总体来说，ifconfig命令的输出提供了关于各个网络接口的详细信息，包括地址、状态、配置等。
+
+
+Q：网卡名ens3、ens4有什么特别含义？
+在Linux中，网卡名以"eth"或"ens"开头的命名方式有特别的含义。这种命名方式是由系统采用了预测可持续网络设备命名（Predictable Network Interface Names）规则，这是为了替代传统的以"eth0"、"eth1"等方式命名网络接口的方式。传统的命名方式可能在系统重新识别网络设备时导致设备顺序发生改变，而预测可持续网络设备命名规则则更可靠地保证设备的命名稳定性。
+
+具体来说，"eth"开头的网卡名通常表示传统的以太网接口，而"ens"开头的网卡名通常表示系统使用了"systemd"来管理网络接口。"ens"开头的网卡名通常会包含接口的位置和连接信息，以便更好地识别和管理多个网络接口。
+
+总之，"eth"和"ens"开头的网卡名是为了提供更可靠、可预测的网络接口命名方式，以便系统管理员更好地管理和维护多个网络接口。
+
+```
 
 
 
