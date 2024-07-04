@@ -54,7 +54,7 @@ public class Flink01_Project_High_PV_state {
                                 .withTimestampAssigner((event, timestamp) -> event.getTimestamp())
                 )
                 .filter(event -> "pv".equals(event.getBehavior()))
-                .windowAll(SlidingEventTimeWindows.of(Time.hours(2), Time.minutes(10)))
+                .windowAll(SlidingEventTimeWindows.of(Time.hours(2), Time.hours(2)))
                 .process(new ProcessAllWindowFunction<UserBehavior, String, TimeWindow>() {
 
                     private ReducingState<Long> pvState;
@@ -78,8 +78,13 @@ public class Flink01_Project_High_PV_state {
                     public void process(ProcessAllWindowFunction<UserBehavior, String, TimeWindow>.Context ctx,
                                         Iterable<UserBehavior> iterable,
                                         Collector<String> out) throws Exception {
-                        pvState.add(1L);
-                        out.collect("PV: " + pvState);
+                        pvState.clear();
+                        for (UserBehavior element : iterable) {
+                            pvState.add(1L);
+                        }
+                        String stt = AtguiguUtil.toDateTime(ctx.window().getStart());
+                        String edt = AtguiguUtil.toDateTime(ctx.window().getEnd());
+                        out.collect("窗口：" + stt + "~" + edt + "，pv数：" + pvState.get());
                     }
                 })
                 .print();
