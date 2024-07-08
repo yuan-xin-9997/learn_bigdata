@@ -2,8 +2,20 @@
 <module type="JAVA_MODULE" version="4">
   <component name="NewModuleRootManager" inherit-compiler-output="true">
     <exclude-output />
-    <content url="file://$MODULE_DIR$" />
+    <content url="file://$MODULE_DIR$">
+      <excludeFolder url="file://$MODULE_DIR$/.idea/codeStyles" />
+      <excludeFolder url="file://$MODULE_DIR$/CollectionProDemo1/.idea/dataSources" />
+      <excludeFolder url="file://$MODULE_DIR$/CollectionProDemo1/target" />
+      <excludeFolder url="file://$MODULE_DIR$/GitDemo/.idea" />
+      <excludeFolder url="file://$MODULE_DIR$/OfflineWarehouseDemo/.idea/dataSources" />
+      <excludeFolder url="file://$MODULE_DIR$/ScalaDemo1/.idea/dataSources" />
+      <excludeFolder url="file://$MODULE_DIR$/ScalaDemo1/.idea/libraries" />
+      <excludeFolder url="file://$MODULE_DIR$/ScalaDemo1/target" />
+      <excludeFolder url="file://$MODULE_DIR$/SparkDemo1/.idea/dataSources" />
+      <excludeFolder url="file://$MODULE_DIR$/SparkDemo1/target" />
+    </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="library" name="Maven: org.scala-lang:scala-library:2.12.10" level="project" />
   </component>
 </module>
