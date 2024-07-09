@@ -17,43 +17,27 @@ import java.util.Map;
 
 /**
  * @author: yuan.xin
- * @createTime: 2024/07/08 21:35
+ * @createTime: 2024年7月9日18:44:56
  * @contact: yuanxin9997@qq.com
  * @description: 第9章Flink CEP编程
  *
- * 第9章Flink CEP编程
- * 9.1什么是FlinkCEP
- * FlinkCEP(Complex event processing for Flink) 是在Flink实现的复杂事件处理库. 它可以让你在无界流中检测出特定的数据，有机会掌握数据中重要的那部分。
- * 是一种基于动态环境中事件流的分析技术，事件在这里通常是有意义的状态变化，通过分析事件间的关系，利用过滤、关联、聚合等技术，根据事件间的时序关系和聚合关系制定检测规则，持续地从事件流中查询出符合要求的事件序列，最终分析得到更复杂的复合事件。
- * 1.目标：从有序的简单事件流中发现一些高阶特征
- * 2.输入：一个或多个由简单事件构成的事件流
- * 3.处理：识别简单事件之间的内在联系，多个符合一定规则的简单事件构成复杂事件
- * 4.输出：满足规则的复杂事件
+ * 9.4.2组合模式(模式序列)
+ * 把多个单个模式组合在一起就是组合模式.  组合模式由一个初始化模式(.begin(...))开头
+ * 严格连续(严格紧邻)
+ * 期望所有匹配的事件严格的一个接一个出现，中间没有任何不匹配的事件
  *
- * 9.2Flink CEP应用场景
- * 风险控制（类似监查系统）
- * 对用户异常行为模式进行实时检测，当一个用户发生了不该发生的行为，判定这个用户是不是有违规操作的嫌疑。
- * 策略营销
- * 用预先定义好的规则对用户的行为轨迹进行实时跟踪，对行为轨迹匹配预定义规则的用户实时发送相应策略的推广。
- * 运维监控
- * 灵活配置多指标、多依赖来实现更复杂的监控模式。
+ * 注意:
+ * notNext  如果不想后面直接连着一个特定事件
  *
- * 9.3CEP开发基本步骤
- * 9.3.1导入CEP相关依赖
- * <dependency>
- *     <groupId>org.apache.flink</groupId>
- *     <artifactId>flink-cep_${scala.binary.version}</artifactId>
- *     <version>${flink.version}</version>
- * </dependency>
- * 9.3.2基本使用
  *
- * CEP使用步骤：
- * 1. 先有1个流
- * 2. 定义规则（模式）
- * 3. 把规则作用到流，得到一个模式流
- * 4. 从模式流中选择出匹配的数据
+ *
+ * 松散连续
+ * 忽略匹配的事件之间的不匹配的事件。
+ *
+ * 注意:
+ * 	notFollowBy 如果不想一个特定事件发生在两个事件之间的任何地方。(notFollowBy不能位于模式的最后)
  */
-public class Flink01_CEP_BaseUse {
+public class Flink04_CEP_CombinePattern {
     public static void main(String[] Args) {
         // Web UI 端口设置
         Configuration conf = new Configuration();
@@ -79,16 +63,32 @@ public class Flink01_CEP_BaseUse {
                                 .withTimestampAssigner((waterSensor, recordTimestamp) -> waterSensor.getTs())
                 );
 
-        // 2. 定义CEP规则
+        // 2. 定义CEP规则（模式）
         Pattern<WaterSensor, WaterSensor> pattern = Pattern
                 .<WaterSensor>begin("s1")
-                .where(new SimpleCondition<WaterSensor>() {  // 条件
+                .where(new SimpleCondition<WaterSensor>() {
                     @Override
                     public boolean filter(WaterSensor value) throws Exception {
                         return "sensor_1".equals(value.getId());
                     }
                 })
-                .times(2)
+                //.next("s2")  // 严格连续(严格紧邻)  按照时间水印 定义的严格连续 而不是输入数据的先后
+                //.notNext("s2")  // 严格连续(严格紧邻) 找sensor_1后面有数据，但是不是sensor_2
+                //.followedBy("s2")  // 松散连续(中间可以跟一个其他者）  s1和s2之间可以跟一个中间者
+                .notFollowedBy("s2")  // 松散连续(中间可以跟一个其他者） s1后面不可以有s2 NotFollowedBy is not supported as a last part of a Pattern
+                .where(new SimpleCondition<WaterSensor>() {
+                    @Override
+                    public boolean filter(WaterSensor value) throws Exception {
+                        return "sensor_2".equals(value.getId());
+                    }
+                })
+                .followedBy("s3")
+                .where(new SimpleCondition<WaterSensor>() {
+                    @Override
+                    public boolean filter(WaterSensor value) throws Exception {
+                        return "sensor_3".equals(value.getId());
+                    }
+                })
                 ;
 
         // 3. 把规则作用到流上

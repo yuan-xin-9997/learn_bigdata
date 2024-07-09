@@ -17,43 +17,55 @@ import java.util.Map;
 
 /**
  * @author: yuan.xin
- * @createTime: 2024/07/08 21:35
+ * @createTime: 2024年7月9日18:44:56
  * @contact: yuanxin9997@qq.com
  * @description: 第9章Flink CEP编程
+ * 9.4模式API
+ * 模式API可以让你定义想从输入流中抽取的复杂模式序列。
+ * 几个概念:
+ * 模式:
+ * 比如找拥有相同属性事件序列的模式(前面案例中的拥有相同的id), 我们一般把简单模式称之为模式
+ * 注意:
+ * 1.每个模式必须有一个独一无二的名字，你可以在后面使用它来识别匹配到的事件。(比如前面的start模式)
+ * 2.模式的名字不能包含字符":"
+ * 模式序列
+ * 每个复杂的模式序列包括多个简单的模式，也叫模式序列. 你可以把模式序列看作是这样的模式构成的图，这些模式基于用户指定的条件从一个转换到另外一个。
+ * 匹配
+ * 输入事件的一个序列，这些事件通过一系列有效的模式转换，能够访问到复杂模式图中的所有模式。
+ * 9.4.1单个模式
+ * 单个模式可以是单例模式或者循环模式.
+ * 单例模式
+ * 单例模式只接受一个事件. 默认情况模式都是单例模式.
+ * 前面的例子就是一个单例模式
+ * 循环模式
+ * 循环模式可以接受多个事件.
+ * 单例模式配合上量词就是循环模式.(非常类似我们熟悉的正则表达式)
  *
- * 第9章Flink CEP编程
- * 9.1什么是FlinkCEP
- * FlinkCEP(Complex event processing for Flink) 是在Flink实现的复杂事件处理库. 它可以让你在无界流中检测出特定的数据，有机会掌握数据中重要的那部分。
- * 是一种基于动态环境中事件流的分析技术，事件在这里通常是有意义的状态变化，通过分析事件间的关系，利用过滤、关联、聚合等技术，根据事件间的时序关系和聚合关系制定检测规则，持续地从事件流中查询出符合要求的事件序列，最终分析得到更复杂的复合事件。
- * 1.目标：从有序的简单事件流中发现一些高阶特征
- * 2.输入：一个或多个由简单事件构成的事件流
- * 3.处理：识别简单事件之间的内在联系，多个符合一定规则的简单事件构成复杂事件
- * 4.输出：满足规则的复杂事件
+ * // 1. 定义模式
+ * Pattern<WaterSensor, WaterSensor> pattern = Pattern
+ *     .<WaterSensor>begin("start")
+ *     .where(new SimpleCondition<WaterSensor>() {
+ *         @Override
+ *         public boolean filter(WaterSensor value) throws Exception {
+ *             return "sensor_1".equals(value.getId());
+ *         }
+ *     });
  *
- * 9.2Flink CEP应用场景
- * 风险控制（类似监查系统）
- * 对用户异常行为模式进行实时检测，当一个用户发生了不该发生的行为，判定这个用户是不是有违规操作的嫌疑。
- * 策略营销
- * 用预先定义好的规则对用户的行为轨迹进行实时跟踪，对行为轨迹匹配预定义规则的用户实时发送相应策略的推广。
- * 运维监控
- * 灵活配置多指标、多依赖来实现更复杂的监控模式。
+ * // 1.1 使用量词 出现两次
+ * Pattern<WaterSensor, WaterSensor> patternWithQuantifier = pattern.times(2);
+ * 范围内的次数
+ * // 1.1 使用量词 [2,4]   2次,3次或4次
+ * Pattern<WaterSensor, WaterSensor> patternWithQuantifier = pattern.times(2, 4);
  *
- * 9.3CEP开发基本步骤
- * 9.3.1导入CEP相关依赖
- * <dependency>
- *     <groupId>org.apache.flink</groupId>
- *     <artifactId>flink-cep_${scala.binary.version}</artifactId>
- *     <version>${flink.version}</version>
- * </dependency>
- * 9.3.2基本使用
+ * 一次或多次
+ * Pattern<WaterSensor, WaterSensor> patternWithQuantifier = pattern.oneOrMore();
+ * 多次及多次以上
+ * // 2次或2次一样
+ * Pattern<WaterSensor, WaterSensor> patternWithQuantifier = pattern.timesOrMore(2);
  *
- * CEP使用步骤：
- * 1. 先有1个流
- * 2. 定义规则（模式）
- * 3. 把规则作用到流，得到一个模式流
- * 4. 从模式流中选择出匹配的数据
+ *
  */
-public class Flink01_CEP_BaseUse {
+public class Flink02_CEP_LoopPattern {
     public static void main(String[] Args) {
         // Web UI 端口设置
         Configuration conf = new Configuration();
@@ -82,13 +94,22 @@ public class Flink01_CEP_BaseUse {
         // 2. 定义CEP规则
         Pattern<WaterSensor, WaterSensor> pattern = Pattern
                 .<WaterSensor>begin("s1")
-                .where(new SimpleCondition<WaterSensor>() {  // 条件
+                .where(new SimpleCondition<WaterSensor>() {
                     @Override
                     public boolean filter(WaterSensor value) throws Exception {
                         return "sensor_1".equals(value.getId());
                     }
                 })
-                .times(2)
+                //.times(2)  // 匹配正好2次   a{2}
+                //.times(2, 4)  // 匹配2~4次   a{2,4}
+                //.timesOrMore(1)  // 匹配1次或多次  a{1,}
+                .oneOrMore()  //  匹配1次或多次  a{1,}
+                .until(new SimpleCondition<WaterSensor>() {  // more的后面务必要加util终止条件，否则容易内存溢出
+                    @Override
+                    public boolean filter(WaterSensor value) throws Exception {
+                        return "sensor_2".equals(value.getId());
+                    }
+                })
                 ;
 
         // 3. 把规则作用到流上
