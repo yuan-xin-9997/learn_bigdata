@@ -7,6 +7,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.catalog.hive.HiveCatalog;
 
 import java.time.Duration;
 
@@ -44,9 +45,23 @@ import static org.apache.flink.table.api.Expressions.$;
  * </dependency>
  * 在hadoop162启动hive元数据
  * nohup hive --service metastore >/dev/null 2>&1 &
+ *
+ *
+ *
+ *
+ * 注意：QA
+ * * 错误信息：Permission denied: user=yuanx, access=WRITE, inode="/input":atguigu:supergroup:drwxr-xr-x
+ * * 解决方案：
+ * *   1. 设置权限
+ * *   2. 设置操作HDFS文件系统的用户，IDEA VM options添加“-DHADOOP_USER_NAME=atguigu”
+ * 或者
+ * System.setProperty("HADOOP_USER_NAME", "atguigu");
  */
 public class Flink01_catalog_Hive {
     public static void main(String[] Args) {
+        // 设置环境变量
+        System.setProperty("HADOOP_USER_NAME", "atguigu");
+
         // Web UI 端口设置
         Configuration conf = new Configuration();
         conf.setInteger("rest.port", 20000);
@@ -55,7 +70,7 @@ public class Flink01_catalog_Hive {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(conf);
 
         // 设置并行度，如果不设置，默认并行度=CPU核心数
-        env.setParallelism(3);
+        env.setParallelism(1);
 
         // Flink程序主逻辑
         // 先添加水印
@@ -79,12 +94,27 @@ public class Flink01_catalog_Hive {
                 );
         // 创建流表环境
         StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
-        // 创建表
-        Table table = tEnv.fromDataStream(stream, $("id"), $("ts"), $("vc"), $("et").rowtime());
-        table.printSchema();
-        //table.execute().print();
 
-        // 注册临时表
-        tEnv.createTemporaryView("sensor", table);
+
+        // DDL创建表
+        tEnv.executeSql("CREATE TABLE person (id STRING, ts BIGINT, vc INT) " +
+                "WITH ('connector' = 'filesystem', 'path' = 'FlinkDemo1/input/sensor.json', 'format' = 'json')")
+                ;
+
+        // 2. 创建Hive Catalog
+        HiveCatalog hc = new HiveCatalog("hive", "gmall", "FlinkDemo1/input");
+        // 3. 向表环境注册HiveCataLog
+        tEnv.registerCatalog("hive", hc);
+        tEnv.useCatalog("hive");
+        tEnv.useDatabase("gmall");
+        // 4. 使用HiveCataLog去读取hive数据
+        tEnv.useCatalog("default_catalog");
+        tEnv.sqlQuery("select " +
+                " * " +
+                //" from hive.gmall.person ")
+                " from person ")
+//                " from default_catalog.default_database.person ")
+                .execute()
+                .print();
     }
 }
