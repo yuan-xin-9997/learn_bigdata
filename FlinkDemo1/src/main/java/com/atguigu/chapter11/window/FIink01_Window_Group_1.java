@@ -63,15 +63,21 @@ public class FIink01_Window_Group_1 {
         //table.execute().print();
 
         // 用table api方式实现窗口   lit = literal 字面量 比如 1 2 "abc"
-        //GroupWindow window = Tumble.over(Expressions.lit(5).second()).on($("et")).as("w");  // 滚动窗口
-//        GroupWindow window = Slide.over(
-//                Expressions.lit(5).second()
-//        ).every(
-//                Expressions.lit(2).second()
-//        ).on($("et")).as("w");  // 滑动窗口
+
+        // 滚动窗口
+        //GroupWindow window = Tumble.over(Expressions.lit(5).second()).on($("et")).as("w");
+
+        // 滑动窗口
+        //GroupWindow window = Slide.over(
+        //        Expressions.lit(5).second()
+        //).every(
+        //        Expressions.lit(2).second()
+        //).on($("et")).as("w");
+
+        // 会话窗口
         GroupWindow window = Session.withGap(
                 Expressions.lit(2).second()
-        ).on($("et")).as("w");  // 会话窗口
+        ).on($("et")).as("w");
 
         table
                 .window(window)
@@ -90,5 +96,14 @@ public class FIink01_Window_Group_1 {
         //| +I | 1970-01-01 00:00:05.000 | 1970-01-01 00:00:10.000 |         110 |
         //+----+-------------------------+-------------------------+-------------+
         //2 rows in set
+
+        // 会话窗口执行结果：
+        //+----+--------------------------------+-------------------------+-------------------------+-------------+
+        //| op |                             id |                  EXPR$0 |                  EXPR$1 |      vc_sum |
+        //+----+--------------------------------+-------------------------+-------------------------+-------------+
+        //| +I |                         ws_002 | 1970-01-01 00:00:02.000 | 1970-01-01 00:00:06.000 |          60 |
+        //| +I |                         ws_001 | 1970-01-01 00:00:01.000 | 1970-01-01 00:00:07.000 |          90 |
+        //| +I |                         ws_002 | 1970-01-01 00:00:06.001 | 1970-01-01 00:00:08.001 |          60 |
+        //+----+--------------------------------+-------------------------+-------------------------+-------------+
     }
 }

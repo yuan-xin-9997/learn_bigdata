@@ -19,7 +19,7 @@ import static org.apache.flink.table.api.Expressions.$;
  * @author: yuan.xin
  * @createTime: 2024/07/16 18:43
  * @contact: yuanxin9997@qq.com
- * @description: Flink 窗口Window - Flink SQl 中使用窗口 - 分组窗口
+ * @description: Flink 窗口Window - Flink SQl 中使用窗口
  *
  * 11.5窗口(window)
  * 时间语义，要配合窗口操作才能发挥作用。最主要的用途，当然就是开窗口然后根据时间段做计算了。
