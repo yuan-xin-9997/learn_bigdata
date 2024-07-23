@@ -1,23 +1,20 @@
-package com.atguigu.chapter08;
+package com.atguigu.chapter13;
 
-import com.atguigu.bean.HotItem;
 import com.atguigu.bean.UserBehavior;
 import com.atguigu.utils.AtguiguUtil;
+import org.apache.flink.shaded.guava18.com.google.common.hash.Funnel;
 import org.apache.flink.api.common.eventtime.SerializableTimestampAssigner;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
-import org.apache.flink.api.common.state.ReducingState;
-import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.shaded.guava18.com.google.common.hash.BloomFilter;
+import org.apache.flink.shaded.guava18.com.google.common.hash.Funnels;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
-import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
@@ -26,9 +23,9 @@ import java.time.Duration;
 
 /**
  * @author: yuan.xin
- * @createTime: 2024/07/04 20:08
+ * @createTime: 2024年7月23日20:14:04
  * @contact: yuanxin9997@qq.com
- * @description: 8.1.2指定时间范围内网站独立访客数（UV）的统计
+ * @description: 8.1.2指定时间范围内网站独立访客数（UV）的统计 - 使用布隆过滤器实现此需求
  *
  * 8.2电商数据分析
  * 电商平台中的用户行为频繁且较复杂，系统上线运行一段时间后，可以收集到大量的用户行为数据，进而利用大数据技术进行深入挖掘和分析，得到感兴趣的商业指标并增强对风险的控制。
@@ -43,7 +40,7 @@ import java.time.Duration;
  * 时间: 使用event-time
  *
  */
-public class Flink02_Project_High_UV {
+public class Flink03_Project_High_UV_By_BloomFilter {
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -58,39 +55,37 @@ public class Flink02_Project_High_UV {
             });
 
         env
-                .setParallelism(1)
+            .setParallelism(1)
             .readTextFile("FlinkDemo1/input/UserBehavior.csv")
             .map(line -> { // 对数据切割, 然后封装到POJO中
                 String[] split = line.split(",");
-                return new UserBehavior(Long.valueOf(split[0]), Long.valueOf(split[1]), Integer.valueOf(split[2]), split[3], Long.valueOf(split[4]));
+                return new UserBehavior(Long.valueOf(split[0]),
+                        Long.valueOf(split[1]),
+                        Integer.valueOf(split[2]),
+                        split[3],
+                        Long.valueOf(split[4]));
             })
-            .filter(behavior -> "pv".equals(behavior.getBehavior())) //过滤出pv行为
             .assignTimestampsAndWatermarks(wms)
-            .keyBy(UserBehavior::getBehavior)
-            .window(TumblingEventTimeWindows.of(Time.minutes(120)))
-            .process(new ProcessWindowFunction<UserBehavior, String, String, TimeWindow>() {
-
-                private MapState<Long, String> userIdState;
-
+            .filter(behavior -> "pv".equals(behavior.getBehavior())) //过滤出pv行为
+            .windowAll(SlidingEventTimeWindows.of(Time.hours(2), Time.hours(2)))
+            .process(new ProcessAllWindowFunction<UserBehavior, String, TimeWindow>() {
                 @Override
-                public void open(Configuration parameters) throws Exception {
-                    userIdState = getRuntimeContext()
-                        .getMapState(new MapStateDescriptor<Long, String>("userIdState", Long.class, String.class));
-                }
-
-                @Override
-                public void process(String key,
-                                    Context ctx,
+                public void process(ProcessAllWindowFunction<UserBehavior, String, TimeWindow>.Context ctx,
                                     Iterable<UserBehavior> elements,
                                     Collector<String> out) throws Exception {
-                    userIdState.clear();
-                    for (UserBehavior ub : elements) {
-                        userIdState.put(ub.getUserId(), "随意");
+                    // 使用Google guagua创建布隆过滤器
+                    // 第一个参数 布隆过滤存的数据类型，第二个参数 预计要存储的数据元素，第三个参数 希望假阳性的概率不高于此值
+                    BloomFilter<Long> bloomFilter = BloomFilter.create(Funnels.longFunnel(), 100 * 10000, 0.01);
+                    int count = 0;  // 记录 独立访客的数量
+                    for (UserBehavior element : elements) {
+                        if (bloomFilter.put(element.getUserId())) {  // 判断是否成功将数据添加到布隆过滤器中
+                            count ++;
+                        }
                     }
-                    //out.collect(userIdState.keys().spliterator().estimateSize());
+//                    bloomFilter.mightContain()
                     String stt = AtguiguUtil.toDateTime(ctx.window().getStart());
                     String edt = AtguiguUtil.toDateTime(ctx.window().getEnd());
-                    out.collect(stt + " - " + edt + " - " + userIdState.keys().spliterator().estimateSize());
+                    out.collect(stt + " - " + edt + " - " + count);
                 }
             })
             .print();
