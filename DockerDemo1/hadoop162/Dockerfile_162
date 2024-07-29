@@ -1,0 +1,72 @@
+############################################
+# 本镜像对 hadoop162 进行相应的配置
+############################################
+
+# 基础镜像 继承自 base 镜像
+FROM atguigu_bigdata_base:2.0.0
+
+# 作者信息
+MAINTAINER atguigu_lzc (lizhenchao@atguigu.cn)
+
+USER atguigu
+
+# 修改 zookeeper id
+RUN   echo "162" > /opt/module/zookeeper-3.5.7/zkData/myid \
+   && sed -i 's/^broker.id.*$/broker.id=162/' /opt/module/kafka-2.4.1/config/server.properties `# 修改 kafka-broker 地址` \
+   && mkdir /home/atguigu/.ssh `# 生产 ssh 秘钥` \
+   && ssh-keygen -t rsa -N '' -f /home/atguigu/.ssh/id_rsa -q
+
+USER root
+RUN mkdir /root/.ssh `# 生产 ssh 秘钥` \
+   && ssh-keygen -t rsa -N '' -f /root/.ssh/id_rsa -q
+
+USER atguigu
+
+COPY --chown=atguigu:atguigu real_time/ /opt/software/
+
+# 修改es配置
+RUN    sed -i 's/^node.name.*$/node.name: node-1/' /opt/module/elasticsearch-6.6.0/config/elasticsearch.yml \
+    && sed -i 's/^network.host.*$/network.host: hadoop162/' /opt/module/elasticsearch-6.6.0/config/elasticsearch.yml \
+	&& sed -i 's/^node.master.*$/node.master: true/' /opt/module/elasticsearch-6.6.0/config/elasticsearch.yml
+# 一些常用的脚本
+COPY --chown=atguigu:atguigu atguigu_bin/* /home/atguigu/bin/
+RUN chmod +x /home/atguigu/bin/*
+
+# 安装和配置Kibana
+COPY --chown=atguigu:atguigu kibana-6.6.0-linux-x86_64.tar.gz /opt/software
+RUN    tar -zxvf /opt/software/kibana-6.6.0-linux-x86_64.tar.gz -C /opt/module \
+    && mv /opt/module/kibana-6.6.0-linux-x86_64 /opt/module/kibana-6.6.0 \
+    && rm -rf /opt/software/kibana-6.6.0-linux-x86_64.tar.gz
+ENV KIBANA_HOME=$hive
+ENV PATH=$KIBANA_HOME/bin:$PATH
+
+COPY --chown=atguigu:atguigu kibana_conf/ /opt/module/kibana-6.6.0/
+
+# 安装和配置nginx
+#COPY --chown=atguigu:atguigu nginx-1.12.2 /opt/software/nginx-1.12.2/
+
+#RUN cd /opt/software/nginx-1.12.2 \
+#	&& ./configure --prefix=/opt/module/nginx \
+#	&& make \
+#	&& make install \
+#	&& rm -rf /opt/software/nginx-1.12.2
+#COPY --chown=atguigu:atguigu nginx_conf/ /opt/module/nginx/
+
+# 安装和配置spark
+COPY --chown=atguigu:atguigu spark-3.0.0-bin-hadoop3.2.tgz /opt/software/
+RUN    tar -zxvf /opt/software/spark-3.0.0-bin-hadoop3.2.tgz -C /opt/module \
+    && mv /opt/module/spark-3.0.0-bin-hadoop3.2 /opt/module/spark-3.0.0-yarn \
+    && rm -rf /opt/software/spark-3.0.0-bin-hadoop3.2.tgz
+COPY --chown=atguigu:atguigu spark_conf/ /opt/module/spark-3.0.0-yarn/
+	
+
+# 安装和配置 maxwell
+COPY --chown=atguigu:atguigu maxwell-1.27.1.tar.gz /opt/software/
+RUN    tar -zxvf /opt/software/maxwell-1.27.1.tar.gz -C /opt/module \
+    && rm -rf /opt/software/maxwell-1.27.1.tar.gz
+
+# 配置 maxwell
+COPY --chown=atguigu:atguigu maxwell_conf/ /opt/module/maxwell-1.27.1/
+
+USER root
+#RUN setcap cap_net_bind_service=+eip /opt/module/nginx/sbin/nginx

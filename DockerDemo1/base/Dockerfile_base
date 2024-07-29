@@ -1,0 +1,163 @@
+############################################
+# 该镜像是整个集群的基础镜像
+# 1. 准备所有的安装包到镜像上
+# 2. 并解压
+# 3. 添加新用户 atguigu
+# ...
+############################################
+
+# 基础镜像
+FROM atguigu_bigdata_ssh:2.0.0
+
+# 作者信息
+MAINTAINER atguigu_lzc (lizhenchao@atguigu.cn)
+
+#######################################################
+#################### copy 安装包开始 ###################
+USER atguigu
+# 定义变量
+ARG hadoop=/opt/module/hadoop-3.1.3
+ARG zookeeper=/opt/module/zookeeper-3.5.7
+ARG hbase=/opt/module/hbase-2.0.5
+ARG phoenix=/opt/module/phoenix-5.0.0
+ARG kafka=/opt/module/kafka-2.4.1
+ARG hive=/opt/module/hive-3.1.2
+ARG flume=/opt/module/flume-1.9.0
+
+
+# copy hadoop lzo /opt/module 目录下, 自动解压, 配置环境变量
+COPY --chown=atguigu:atguigu  hadoop-3.1.3.tar.gz /opt/software
+RUN    tar -zxvf /opt/software/hadoop-3.1.3.tar.gz -C /opt/module \
+    && rm -rf /opt/software/hadoop-3.1.3.tar.gz
+COPY --chown=atguigu:atguigu hadoop-lzo-0.4.20.jar /opt/module/hadoop-3.1.3/share/hadoop/common
+ENV HADOOP_HOME=$hadoop
+ENV PATH=$HADOOP_HOME/bin:$HADOOP_HOME/sbin:$PATH
+
+# copy zookeepr
+COPY --chown=atguigu:atguigu apache-zookeeper-3.5.7-bin.tar.gz /opt/software
+RUN    tar -zxvf /opt/software/apache-zookeeper-3.5.7-bin.tar.gz -C /opt/module \
+    && mv /opt/module/apache-zookeeper-3.5.7-bin /opt/module/zookeeper-3.5.7 \
+    && rm -rf /opt/software/apache-zookeeper-3.5.7-bin.tar.gz
+ENV ZOOKEEPER_HOME=$zookeeper
+ENV PATH=$ZOOKEEPER_HOME/bin:$PATH
+
+# copy hbase
+COPY --chown=atguigu:atguigu hbase-2.0.5-bin.tar.gz /opt/software
+RUN tar -zxvf /opt/software/hbase-2.0.5-bin.tar.gz -C /opt/module \
+    && rm -rf /opt/software/hbase-2.0.5-bin.tar.gz
+ENV HBASE_HOME=$hbase
+ENV PATH=$HBASE_HOME/bin:$PATH
+
+# copy phoenix
+COPY --chown=atguigu:atguigu apache-phoenix-5.0.0-HBase-2.0-bin.tar.gz /opt/software
+RUN    tar -zxvf /opt/software/apache-phoenix-5.0.0-HBase-2.0-bin.tar.gz -C /opt/module \
+    && mv /opt/module/apache-phoenix-5.0.0-HBase-2.0-bin /opt/module/phoenix-5.0.0 \
+    && rm -rf /opt/software/apache-phoenix-5.0.0-HBase-2.0-bin.tar.gz
+ENV PHOENIX_HOME=$phoenix
+ENV PHOENIX_CLASSPATH=$phoenix
+ENV PATH=$PHOENIX_HOME/bin:$PATH
+
+# copy kafka
+COPY --chown=atguigu:atguigu kafka_2.11-2.4.1.tgz /opt/software
+RUN    tar -zxvf /opt/software/kafka_2.11-2.4.1.tgz -C /opt/module \
+    && mv /opt/module/kafka_2.11-2.4.1 /opt/module/kafka-2.4.1 \
+    && rm -rf /opt/software/kafka_2.11-2.4.1.tgz
+ENV KAFKA_HOME=$kafka
+ENV PATH=$KAFKA_HOME/bin:$PATH
+
+# copy hive
+COPY --chown=atguigu:atguigu apache-hive-3.1.2-bin.tar.gz /opt/software
+RUN    tar -zxvf /opt/software/apache-hive-3.1.2-bin.tar.gz -C /opt/module \
+    && mv /opt/module/apache-hive-3.1.2-bin /opt/module/hive-3.1.2 \
+    && rm -rf /opt/software/apache-hive-3.1.2-bin.tar.gz
+ENV HIVE_HOME=$hive
+ENV PATH=$HIVE_HOME/bin:$PATH
+
+# copy es 和 ik分词器
+COPY --chown=atguigu:atguigu elasticsearch-6.6.0.tar.gz /opt/software
+RUN    tar -zxvf /opt/software/elasticsearch-6.6.0.tar.gz -C /opt/module \
+    && rm -rf /opt/software/elasticsearch-6.6.0.tar.gz
+ENV ES_HOME=/opt/module/elasticsearch-6.6.0
+ENV PATH=$ES_HOME/bin:$PATH
+
+COPY --chown=atguigu:atguigu elasticsearch-analysis-ik-6.6.0.zip /opt/software
+RUN unzip /opt/software/elasticsearch-analysis-ik-6.6.0.zip -d /opt/module/elasticsearch-6.6.0/plugins/ik  \
+    && rm -rf /opt/software/elasticsearch-analysis-ik-6.6.0.zip
+
+USER root
+# copy mysql 和安装 mysql
+COPY --chown=atguigu:atguigu *.rpm /opt/software/
+RUN     yum -y install numactl libaio perl \
+    &&  rpm -ivh /opt/software/01_mysql-community-common-5.7.16-1.el7.x86_64.rpm \
+    &&  rpm -ivh /opt/software/02_mysql-community-libs-5.7.16-1.el7.x86_64.rpm \
+    &&  rpm -ivh /opt/software/03_mysql-community-libs-compat-5.7.16-1.el7.x86_64.rpm \
+    &&  rpm -ivh /opt/software/04_mysql-community-client-5.7.16-1.el7.x86_64.rpm \
+    &&  rpm -ivh /opt/software/05_mysql-community-server-5.7.16-1.el7.x86_64.rpm \
+    &&  rm -rf /opt/software/*.rpm
+
+
+# 使用 yum 安装 redis 和配置 redis
+USER root
+RUN    yum install -y epel-release redis \
+    && rm -rf redis.conf
+COPY --chown=root:root redis_conf/ /etc/
+USER atguigu
+RUN mkdir -p /opt/module/redis-3.2.12
+
+# 安装flume
+COPY --chown=atguigu:atguigu apache-flume-1.9.0-bin.tar.gz /opt/software
+RUN    tar -zxvf /opt/software/apache-flume-1.9.0-bin.tar.gz -C /opt/module \
+    && rm -rf /opt/software/apache-flume-1.9.0-bin.tar.gz \
+    && mv /opt/module/apache-flume-1.9.0-bin /opt/module/flume-1.9.0 \
+    && rm -rf /opt/module/flume-1.9.0/lib/guava-11.0.2.jar
+ENV FLUME_HOME=/opt/module/flume-1.9.0
+ENV PATH=$FLUME_HOME/bin:$PATH
+
+
+################### copy 安装包结束 ####################
+#######################################################
+
+#######################################################
+##################### 集群配置开始 #####################
+# 配置 hadoop
+COPY --chown=atguigu:atguigu hadoop_conf/ $hadoop/
+# 配置 zookeeper
+COPY --chown=atguigu:atguigu zookeeper_conf/ $zookeeper/
+# 配置 hbase
+COPY --chown=atguigu:atguigu hbase_conf/ $hbase/
+# 配置 Phoenix
+RUN cp $phoenix/phoenix-5.0.0-HBase-2.0-server.jar $hbase/lib/
+RUN cp $hbase/conf/hbase-site.xml $phoenix/bin/
+# 配置 kafka
+COPY --chown=atguigu:atguigu kafka_conf/ $kafka/
+# 配置 hive
+COPY --chown=atguigu:atguigu hive_conf/ $hive/
+COPY --chown=atguigu:atguigu mysql-connector-java-5.1.27-bin.jar $hive/lib/
+
+# 配置 mysql
+
+COPY --chown=root:root mysql_conf/ /etc/
+
+
+# 配置 es
+COPY --chown=atguigu:atguigu es_conf/ /opt/module/elasticsearch-6.6.0/
+USER root
+RUN    echo "* soft nofile 65536" >> /etc/security/limits.conf \
+    && echo "* hard nofile 131072" >> /etc/security/limits.conf \
+	&& echo "* soft nproc 2048" >> /etc/security/limits.conf \
+	&& echo "* hard nproc 65536" >> /etc/security/limits.conf \
+	&& echo "vm.max_map_count=262144" >> /etc/sysctl.conf
+
+# 配置 flume
+COPY --chown=atguigu:atguigu flume_conf/ $flume/
+
+#################### 集群配置结束 #####################
+######################################################
+
+# 开放所有端口
+EXPOSE 22-65535
+
+# 最后把用户切换到 root, 否则 sshd 无法启动
+USER root
+# ssh 登录的时候, ENV 设置的环境不起作用. 单独配置环境变量
+COPY my.sh /etc/profile.d/
