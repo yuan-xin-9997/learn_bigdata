@@ -1,18 +1,38 @@
 package com.atguigu.realtime.app.dim;
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.atguigu.realtime.app.BaseAppV1;
+import com.atguigu.realtime.bean.TableProcess;
 import com.atguigu.realtime.common.Constant;
 import com.atguigu.realtime.util.FlinkSourceUtil;
+import com.atguigu.realtime.util.JdbcUtil;
+import com.mysql.cj.xdevapi.Table;
+import com.sun.org.apache.xpath.internal.operations.String;
+import com.ververica.cdc.connectors.mysql.source.MySqlSource;
+import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.common.state.BroadcastState;
+import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
+import org.apache.flink.util.Collector;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 
 import static java.lang.System.setProperty;
+
 
 /**
  * @author: yuan.xin
@@ -137,16 +157,186 @@ public class Ods2Dim extends BaseAppV1 {
         new Ods2Dim().init(2001, 2, "Ods2Dim", Constant.TOPIC_ODS_DB);
     }
 
+    /**
+     * 重写业务处理函数
+     *
+     * @param env
+     * @param stream
+     */
     @Override
     protected void handle(StreamExecutionEnvironment env, DataStreamSource<String> stream) {
         // 对流的操作
-        // 1. 对业务数据做ETL
+        // 1. 对业务数据做ETL，获得业务数据流
         SingleOutputStreamOperator<JSONObject> etledStream = etl(stream);
-        etledStream.print();
-        // 2. 读取配置信息（MySQL）
+        //etledStream.print();
+
+        // 2. 读取配置信息流（MySQL）
+        SingleOutputStreamOperator<TableProcess> tpStream = readTableProcess(env);
+        tpStream.print();
+
         // 3. 数据流和广播流进行connect
+        connect(etledStream, tpStream);
+
         // 4. 根据不同的配置信息，把不同的维度写入到不同的Phoenix表中
 
+    }
+
+    /**
+     * 连接数据流和配置流
+     * @param dataStream
+     * @param tpStream
+     */
+    private void connect(SingleOutputStreamOperator<JSONObject> dataStream, SingleOutputStreamOperator<TableProcess> tpStream) {
+        // 0.根据配置信息，在Phoenix中创建相应的维度表
+        tpStream = tpStream
+                .map(new RichMapFunction<TableProcess, TableProcess>() {
+                    private Connection conn;
+                    /**
+                     * 创建数据库连接
+                     * @param parameters The configuration containing the parameters attached to the contract.
+                     * @throws Exception
+                     */
+                    @Override
+                    public void open(Configuration parameters) throws Exception {
+                        conn = JdbcUtil.getPhenixConnection();
+                    }
+
+                    /**
+                     * 关闭数据库连接
+                     * @throws Exception
+                     */
+                    @Override
+                    public void close() throws Exception {
+                        JdbcUtil.closeConnection(conn);
+                    }
+
+                    /**
+                     * 执行建表语句
+                     * @param tp The input value.
+                     * @return
+                     * @throws Exception
+                     */
+                    @Override
+                    public TableProcess map(TableProcess tp) throws Exception {
+                        // 建表操作
+                        // create table if not exists table_name(name varchar, age varchar, constraint pk primary key(name))
+                        // JDBC 操作 Phoenix，一个并行度一个连接
+
+                        // 1. 拼接一个SQL语句
+                        StringBuilder sql = new StringBuilder();
+                        sql
+                                .append("crate table if not exists ")
+                                .append(tp.getSinkPk())
+                                .append("(")
+                                .append(tp.getSinkColumns().replaceAll("[^,]+", "$0 varchar"))
+                                .append(", constraint pk primary key ( ")
+                                .append(tp.getSinkPk())  // MySQL配置表中SinkPk字段可能为空
+                                .append("))")
+                        ;
+
+                        System.out.println("phenix建表语句: " + sql);
+
+                        // 2. 获取预处理语句
+                        PreparedStatement ps = conn.prepareStatement(sql);
+
+                        // 3. 给SQL中占位符赋值(增删改查）,ddl建表语句一般不会有占位符
+                        // 略
+
+                        // 4. 执行
+                        ps.execute();
+
+                        // 5. 关闭ps
+                        if (ps != null) {
+                            ps.close();
+                        }
+                        return tp;
+                    }
+                });
+
+        // 1. 把配置流做成广播流
+        // key: source_table
+        // value: TableProcess
+        MapStateDescriptor<String, TableProcess> tpStateDescriptor = new MapStateDescriptor<>("tpState", String.class, TableProcess.class);
+        BroadcastStream<TableProcess> tpBcStream = tpStream.broadcast(tpStateDescriptor);
+
+        // 2. 让数据流去connect广播流
+        dataStream
+                .connect(tpBcStream)
+                .process(new BroadcastProcessFunction<JSONObject, TableProcess, Tuple2<JSONObject, TableProcess>>() {
+                    /**
+                     * 处理数据流中的元素
+                     * @param value The stream element.
+                     * @param ctx A {@link ReadOnlyContext} that allows querying the timestamp of the element,
+                     *     querying the current processing/event time and updating the broadcast state. The context
+                     *     is only valid during the invocation of this method, do not store it.
+                     * @param out The collector to emit resulting elements to
+                     * @throws Exception
+                     */
+                    @Override
+                    public void processElement(JSONObject value,
+                                               BroadcastProcessFunction<JSONObject, TableProcess, Tuple2<JSONObject, TableProcess>>.ReadOnlyContext ctx,
+                                               Collector<Tuple2<JSONObject, TableProcess>> out) throws Exception {
+                        // 4. 处理数据流中数据的时候，从广播状态读取他对应的配置信息
+                        // 根据什么获取配置信息：根据MySQL中的表名
+                    }
+
+                    /**
+                     * 处理广播流中的元素
+                     * @param value The stream element.
+                     * @param ctx A {@link Context} that allows querying the timestamp of the element, querying the
+                     *     current processing/event time and updating the broadcast state. The context is only valid
+                     *     during the invocation of this method, do not store it.
+                     * @param out The collector to emit resulting elements to
+                     * @throws Exception
+                     */
+                    @Override
+                    public void processBroadcastElement(TableProcess value, BroadcastProcessFunction<JSONObject, TableProcess, Tuple2<JSONObject, TableProcess>>.Context ctx, Collector<Tuple2<JSONObject, TableProcess>> out) throws Exception {
+                        // 3. 把配置信息写入到广播状态
+                        String key = value.getSourceTable();
+                        BroadcastState<String, TableProcess> broadcastState = ctx.getBroadcastState(tpStateDescriptor);
+                        broadcastState.put(key, value);
+
+                        // 在Phoenix+HBase中建表（最好放到广播之前，否则会出现多次建表的情况，导致效率低下） 由于并行度大于1，此处会建表次数=并行度数量，广播传播到每个并行度中
+                        //checkTable(value);
+                    }
+
+                    /**
+                     * 根据读取到配置信息，在HBase+Phoenix中建表
+                     * @param value
+                     */
+//                    private void checkTable(TableProcess value) {
+//                        System.out.println(value.getSourceTable() + " " + value);
+//
+//                    }
+                });
+
+
+    }
+
+    /**
+     * 使用Flink MySQL CDC 读取配置表信息（读取全量+实时变化的数据）
+     * @param env
+     */
+    private SingleOutputStreamOperator<TableProcess> readTableProcess(StreamExecutionEnvironment env) {
+        MySqlSource<String> mySqlSource = MySqlSource.<String>builder()
+                .hostname("hadoop162")  // MySQL主机名
+                .port(3306)
+                .databaseList("gmall_config") // set captured database
+                .tableList("gmall_config.table_process") // set captured table
+                .username("root")
+                .password("aaaaaa")
+                //.debeziumProperties()
+                .deserializer(new JsonDebeziumDeserializationSchema()) // converts SourceRecord to JSON String
+                .build();
+
+        SingleOutputStreamOperator<TableProcess> stream = env
+                .fromSource(mySqlSource, WatermarkStrategy.noWatermarks(), "MySQL Source")
+                //.print();
+                .map(json -> {
+                    JSONObject obj = JSON.parseObject(json);
+                    return obj.getObject("after", TableProcess.class);
+                });
+        return stream;
     }
 
     /**
