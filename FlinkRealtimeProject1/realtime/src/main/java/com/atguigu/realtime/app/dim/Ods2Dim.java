@@ -5,10 +5,8 @@ import com.alibaba.fastjson.JSONObject;
 import com.atguigu.realtime.app.BaseAppV1;
 import com.atguigu.realtime.bean.TableProcess;
 import com.atguigu.realtime.common.Constant;
-import com.atguigu.realtime.util.FlinkSourceUtil;
+import com.atguigu.realtime.util.FlinkSinkUtil;
 import com.atguigu.realtime.util.JdbcUtil;
-import com.mysql.cj.xdevapi.Table;
-import com.sun.org.apache.xpath.internal.operations.String;
 import com.ververica.cdc.connectors.mysql.source.MySqlSource;
 import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -16,22 +14,20 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.ReadOnlyBroadcastState;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.util.Collector;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-
-import static java.lang.System.setProperty;
+import java.util.Arrays;
+import java.util.List;
 
 
 /**
@@ -150,11 +146,31 @@ import static java.lang.System.setProperty;
  *
  *     select .. from t where time >=.. and time <= ... group by ...
  *
+ *
+ * -----------------------------
+ * HBase
+ *  SALT_BUCKETS = 4 盐表
+ *
+ *  regionserver
+ *  region  存数据
+ *
+ *  默认情况下，建一张表 只有一个region，当region膨胀到一定程度后，会自动分裂，分裂算法（旧版本：到10G，一分为2，新版本：）
+ *  Region Split
+ *  默认情况下，每个Table起初只有一个Region，随着数据的不断写入，Region会自动进行拆分。刚拆分时，两个子Region都位于当前的Region
+ *  Server，但处于负载均衡的考虑，HMaster有可能会将某个Region转移给其他的Region Server。
+ *
+ *  hadoop162 r1 r2
+ *  自动迁移到其他节点：r2 迁移到163  在凌晨或半夜
+ *
+ *  生产环境下，为了避免分裂和迁移：进行预分区
+ *  --------------------------
+ *  Phoenix 如何建立预分区的表
+ *
  */
 public class Ods2Dim extends BaseAppV1 {
 
     public static void main(String[] Args) {
-        new Ods2Dim().init(2001, 2, "Ods2Dim", Constant.TOPIC_ODS_DB);
+        new Ods2Dim().init(2001, 1, "Ods2Dim", Constant.TOPIC_ODS_DB);
     }
 
     /**
@@ -172,21 +188,60 @@ public class Ods2Dim extends BaseAppV1 {
 
         // 2. 读取配置信息流（MySQL）
         SingleOutputStreamOperator<TableProcess> tpStream = readTableProcess(env);
-        tpStream.print();
+        //tpStream.print();
 
         // 3. 数据流和广播流进行connect
-        connect(etledStream, tpStream);
+        SingleOutputStreamOperator<Tuple2<JSONObject, TableProcess>> dataTpStream = connect(etledStream, tpStream);
+        //dataTpStream.print();
 
-        // 4. 根据不同的配置信息，把不同的维度写入到不同的Phoenix表中
+        // 4. 过滤掉JSONObject中不需要的字段
+        SingleOutputStreamOperator<Tuple2<JSONObject, TableProcess>> filterNotNeedColumnsStream = filterNotNeedColumns(dataTpStream);
+        //filterNotNeedColumnsStream.print();
 
+        // 5. 根据不同的配置信息，把不同的维度写入到不同的Phoenix表中
+        writeToPhoenix(filterNotNeedColumnsStream);
+    }
+
+    /**
+     * 将流数据写入到Phoenix
+     * 可以通过SQL语句写，flink官方没有提供phoenix sink
+     * JDBC连接器？由于jdbc一个流只能写入到一张表，不能使用jdbc sink   ref https://nightlies.apache.org/flink/flink-docs-release-1.20/docs/connectors/datastream/jdbc/
+     * 因此只能自定义 isnk
+     * @param stream
+     */
+    private void writeToPhoenix(SingleOutputStreamOperator<Tuple2<JSONObject, TableProcess>> stream) {
+        stream
+                .addSink(FlinkSinkUtil.getPhoenixSink())
+                ;
+    }
+
+    /**
+     * 过滤数据函数
+     */
+    private SingleOutputStreamOperator<Tuple2<JSONObject, TableProcess>> filterNotNeedColumns(SingleOutputStreamOperator<Tuple2<JSONObject, TableProcess>> dataTpStream) {
+        return dataTpStream
+                .map(new MapFunction<Tuple2<JSONObject, TableProcess>, Tuple2<JSONObject, TableProcess>>() {
+                    @Override
+                    public Tuple2<JSONObject, TableProcess> map(Tuple2<JSONObject, TableProcess> value) throws Exception {
+                        JSONObject data = value.f0;
+                        List<String> columns = Arrays.asList(value.f1.getSinkColumns().split(","));
+                        // data 是一个map集合，需要从data中删除键值对
+                        data.keySet().removeIf(key->!columns.contains(key) && !"op_type".equals(key));
+                        return value;
+                    }
+                })
+//                .print()
+                ;
     }
 
     /**
      * 连接数据流和配置流
+     *
      * @param dataStream
      * @param tpStream
+     * @return
      */
-    private void connect(SingleOutputStreamOperator<JSONObject> dataStream, SingleOutputStreamOperator<TableProcess> tpStream) {
+    private SingleOutputStreamOperator<Tuple2<JSONObject, TableProcess>> connect(SingleOutputStreamOperator<JSONObject> dataStream, SingleOutputStreamOperator<TableProcess> tpStream) {
         // 0.根据配置信息，在Phoenix中创建相应的维度表
         tpStream = tpStream
                 .map(new RichMapFunction<TableProcess, TableProcess>() {
@@ -218,6 +273,11 @@ public class Ods2Dim extends BaseAppV1 {
                      */
                     @Override
                     public TableProcess map(TableProcess tp) throws Exception {
+                        // 判断连接是否被数据库服务端关闭（比如长链接超时长时间没有使用，服务器会自动关闭连接）或者使用连接池
+                        if (conn.isClosed()) {
+                            conn = JdbcUtil.getPhenixConnection();
+                        }
+
                         // 建表操作
                         // create table if not exists table_name(name varchar, age varchar, constraint pk primary key(name))
                         // JDBC 操作 Phoenix，一个并行度一个连接
@@ -225,19 +285,20 @@ public class Ods2Dim extends BaseAppV1 {
                         // 1. 拼接一个SQL语句
                         StringBuilder sql = new StringBuilder();
                         sql
-                                .append("crate table if not exists ")
-                                .append(tp.getSinkPk())
+                                .append("create table if not exists ")
+                                .append(tp.getSinkTable())
                                 .append("(")
                                 .append(tp.getSinkColumns().replaceAll("[^,]+", "$0 varchar"))
                                 .append(", constraint pk primary key ( ")
-                                .append(tp.getSinkPk())  // MySQL配置表中SinkPk字段可能为空
+                                .append(tp.getSinkPk() == null ? "id" : tp.getSinkPk())  // MySQL配置表中SinkPk字段可能为空
                                 .append("))")
+                                .append(tp.getSinkExtend() == null ? "" : tp.getSinkExtend())
                         ;
 
                         System.out.println("phenix建表语句: " + sql);
 
                         // 2. 获取预处理语句
-                        PreparedStatement ps = conn.prepareStatement(sql);
+                        PreparedStatement ps = conn.prepareStatement(sql.toString());
 
                         // 3. 给SQL中占位符赋值(增删改查）,ddl建表语句一般不会有占位符
                         // 略
@@ -260,7 +321,7 @@ public class Ods2Dim extends BaseAppV1 {
         BroadcastStream<TableProcess> tpBcStream = tpStream.broadcast(tpStateDescriptor);
 
         // 2. 让数据流去connect广播流
-        dataStream
+        return dataStream
                 .connect(tpBcStream)
                 .process(new BroadcastProcessFunction<JSONObject, TableProcess, Tuple2<JSONObject, TableProcess>>() {
                     /**
@@ -273,11 +334,21 @@ public class Ods2Dim extends BaseAppV1 {
                      * @throws Exception
                      */
                     @Override
-                    public void processElement(JSONObject value,
+                    public void processElement(JSONObject value,  // 从kafka读取的数据
                                                BroadcastProcessFunction<JSONObject, TableProcess, Tuple2<JSONObject, TableProcess>>.ReadOnlyContext ctx,
                                                Collector<Tuple2<JSONObject, TableProcess>> out) throws Exception {
                         // 4. 处理数据流中数据的时候，从广播状态读取他对应的配置信息
                         // 根据什么获取配置信息：根据MySQL中的表名
+                        ReadOnlyBroadcastState<String, TableProcess> state = ctx.getBroadcastState(tpStateDescriptor);  // 获取广播状态
+                        String key = value.getString("table");  // kafka中数据的表名
+                        TableProcess tp = state.get(key);
+                        // ？如果不是维度表，或者并不需要sink的维度表，tp应该是null
+                        if (tp != null) {
+                            // 数据中的元数据信息可以不用，可以只取数据信息
+                            JSONObject data = value.getJSONObject("data");
+                            data.put("op_type", value.getString("type"));  // 把操作类型，写入到data中，后续有用
+                            out.collect(Tuple2.of(data, tp));
+                        }
                     }
 
                     /**
@@ -295,22 +366,8 @@ public class Ods2Dim extends BaseAppV1 {
                         String key = value.getSourceTable();
                         BroadcastState<String, TableProcess> broadcastState = ctx.getBroadcastState(tpStateDescriptor);
                         broadcastState.put(key, value);
-
-                        // 在Phoenix+HBase中建表（最好放到广播之前，否则会出现多次建表的情况，导致效率低下） 由于并行度大于1，此处会建表次数=并行度数量，广播传播到每个并行度中
-                        //checkTable(value);
                     }
-
-                    /**
-                     * 根据读取到配置信息，在HBase+Phoenix中建表
-                     * @param value
-                     */
-//                    private void checkTable(TableProcess value) {
-//                        System.out.println(value.getSourceTable() + " " + value);
-//
-//                    }
                 });
-
-
     }
 
     /**

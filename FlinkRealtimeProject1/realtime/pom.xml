@@ -168,6 +168,14 @@
         </dependency>
         <!--        导入Phoenix相关依赖-->
 
+<!--        为了提升效率，减少频繁创建销毁连接带来的性能损耗，创建连接池。-->
+<!--（1）添加德鲁伊连接池依赖-->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>druid</artifactId>
+            <version>1.1.16</version>
+        </dependency>
+
 
     </dependencies>
 

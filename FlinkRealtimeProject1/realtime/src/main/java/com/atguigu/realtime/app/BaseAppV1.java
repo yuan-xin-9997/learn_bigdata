@@ -21,11 +21,6 @@ public abstract class BaseAppV1 {
 
     }
 
-    /**
-     * 对流的操作 抽象方法
-     * @param env
-     * @param stream
-     */
     protected abstract void handle(StreamExecutionEnvironment env, DataStreamSource<String> stream);
 
     public void init(int port, int parallelization, String ckPathAndGroupIdAndJobName, String topic ){
