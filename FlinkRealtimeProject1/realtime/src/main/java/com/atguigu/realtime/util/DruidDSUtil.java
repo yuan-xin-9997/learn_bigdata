@@ -2,7 +2,6 @@ package com.atguigu.realtime.util;
 
 import com.alibaba.druid.pool.DruidDataSource;
 import com.atguigu.realtime.common.Constant;
-import scala.collection.immutable.Stream;
 
 /**
  * 使用Druid使用数据库连接池
@@ -42,7 +41,7 @@ public class DruidDSUtil {
         druidDataSource.setMinEvictableIdleTimeMillis(30 * 60 * 1000L);
     }
 
-    public static DruidDataSource getDataSource() {
+    public static DruidDataSource getDruidDataSource() {
         return druidDataSource;
     }
 }

@@ -50,7 +50,9 @@ public abstract class BaseAppV1 {
         env.getCheckpointConfig().setExternalizedCheckpointCleanup(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 
         // 从Kafka读取数据
-        DataStreamSource<String> stream = env.addSource(FlinkSourceUtil.getKafkaSource(ckPathAndGroupIdAndJobName, topic));
+        DataStreamSource<String> stream = env.addSource(
+                FlinkSourceUtil.getKafkaSource(ckPathAndGroupIdAndJobName, topic)
+        );
         // stream.print();
 
         // 调用抽象方法
@@ -58,7 +60,7 @@ public abstract class BaseAppV1 {
 
         // 懒加载
         try {
-            env.execute("ckPathAndGroupIdAndJobName");
+            env.execute(ckPathAndGroupIdAndJobName);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

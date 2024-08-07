@@ -210,6 +210,7 @@ public class Ods2Dim extends BaseAppV1 {
      * @param stream
      */
     private void writeToPhoenix(SingleOutputStreamOperator<Tuple2<JSONObject, TableProcess>> stream) {
+        // System.out.println("");
         stream
                 .addSink(FlinkSinkUtil.getPhoenixSink())
                 ;

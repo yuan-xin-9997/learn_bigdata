@@ -13,9 +13,7 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
  * @description:
  */
 public class FlinkSinkUtil {
-    public static void main(String[] Args) {
-
-    }
+    public static void main(String[] Args) {}
 
     public static SinkFunction<Tuple2<JSONObject, TableProcess>> getPhoenixSink() {
         return new PhoenixSink();
