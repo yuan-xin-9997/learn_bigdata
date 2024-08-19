@@ -7,6 +7,7 @@ jar=/opt/gmall/realtime-1.0-SNAPSHOT.jar
 # 存储要启动的App的主类
 apps=(
 com.atguigu.realtime.app.dim.Ods2Dim
+com.atguigu.realtime.app.dwd.log.Dwd01_DwdBaseLogApp
 )
 
 # 获取Flink正在运行的App的Name

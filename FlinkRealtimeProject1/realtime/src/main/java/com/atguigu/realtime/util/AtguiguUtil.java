@@ -1,6 +1,10 @@
 package com.atguigu.realtime.util;
 
+import com.alibaba.fastjson.JSONObject;
+
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * @author: yuan.xin
@@ -15,5 +19,12 @@ public class AtguiguUtil {
 
     public static String toDate(Long ts) {
         return new SimpleDateFormat("yyyy-MM-dd").format(ts);
+    }
+
+    public static <T>List<T> toList(Iterable<T> it) {
+        ArrayList<T> list = new ArrayList<>();
+        // it.forEach(e -> list.add(e));
+        it.forEach(list::add);
+        return list;
     }
 }
