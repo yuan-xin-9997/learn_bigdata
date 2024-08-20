@@ -8,6 +8,8 @@ jar=/opt/gmall/realtime-1.0-SNAPSHOT.jar
 apps=(
 com.atguigu.realtime.app.dim.Ods2Dim
 com.atguigu.realtime.app.dwd.log.Dwd01_DwdBaseLogApp
+com.atguigu.realtime.app.dwd.log.Dwd_02_DwdTrafficUniqueVisitorDetail
+com.atguigu.realtime.app.dwd.log.Dwd_03_DwdTrafficUserJumpDetail
 )
 
 # 获取Flink正在运行的App的Name

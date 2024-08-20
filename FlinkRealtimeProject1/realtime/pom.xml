@@ -176,6 +176,13 @@
             <version>1.1.16</version>
         </dependency>
 
+        <!--添加 CEP 相关依赖-->
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-cep_${scala.version}</artifactId>
+            <version>${flink.version}</version>
+        </dependency>
+
 
     </dependencies>
 

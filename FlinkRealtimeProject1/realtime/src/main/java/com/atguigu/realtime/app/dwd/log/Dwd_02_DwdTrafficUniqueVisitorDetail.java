@@ -5,6 +5,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.atguigu.realtime.app.BaseAppV1;
 import com.atguigu.realtime.common.Constant;
 import com.atguigu.realtime.util.AtguiguUtil;
+import com.atguigu.realtime.util.FlinkSinkUtil;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
@@ -91,20 +92,25 @@ public class Dwd_02_DwdTrafficUniqueVisitorDetail extends BaseAppV1 {
                     }
 
                     @Override
-                    public void process(String s, ProcessWindowFunction<JSONObject, String, String, TimeWindow>.Context ctx, Iterable<JSONObject> elements, Collector<String> out) throws Exception {
+                    public void process(String uid,
+                                        ProcessWindowFunction<JSONObject, String, String, TimeWindow>.Context ctx,
+                                        Iterable<JSONObject> elements,
+                                        Collector<String> out) throws Exception {
                         // 找到用户当天的第一个窗口
                         String date = visitDateState.value();
                         String today = AtguiguUtil.toDate(ctx.window().getStart());
                         if (!today.equals(date)) { // 今天和状态的日期不等，则表示当天的第一个窗口
                             List<JSONObject> list = AtguiguUtil.toList(elements);
-                            JSONObject min = Collections.min(list, (o1, o2) -> o2.getLong("ts").compareTo(o1.getLong("ts")));// 找到窗口内时间最小的
+                            // JSONObject min = Collections.min(list, (o1, o2) -> o1.getLong("ts").compareTo(o2.getLong("ts")));// 找到窗口内时间最小的
+                            JSONObject min = Collections.min(list, Comparator.comparing(o -> o.getLong("ts")));// 找到窗口内时间最小的
                             out.collect(min.toJSONString());
                             // 更新状态
                             visitDateState.update(today);
                         }
                     }
                 })
-                .print()
+                // .print()
+                .addSink(FlinkSinkUtil.getKafkaSink(Constant.TOPIC_DWD_TRAFFIC_UNIQUE_VISITOR_DETAIL));
         ;
     }
 }
