@@ -9,9 +9,9 @@ import static java.lang.System.setProperty;
 
 /**
  * @author: yuan.xin
- * @createTime: 2024年8月20日21:44:31
+ * @createTime: 2024年8月21日18:41:33
  * @contact: yuanxin9997@qq.com
- * @description: Flink SQL Join - 常规Join - 左连接 - 使用SQL方式将left join数据 写入到Kafka
+ * @description: Flink SQL Join - 常规Join - 左连接 - 使用SQL方式消费left join数据
  * ref: https://nightlies.apache.org/flink/flink-docs-release-1.13/docs/dev/table/sql/queries/joins/
  *
  * Joins #
@@ -30,14 +30,14 @@ import static java.lang.System.setProperty;
  * 左连接：会有更新
  *      connector只能用upsert-kafka
  */
-public class Join_RegularJoin3 {
+public class Join_RegularJoin4 {
     public static void main(String[] Args) {
         // 设置环境变量
         setProperty("HADOOP_USER_NAME", "atguigu");
 
         // Web UI 端口设置
         Configuration conf = new Configuration();
-        conf.setInteger("rest.port", 20000);
+        conf.setInteger("rest.port", 20001);
 
         // 1. 创建流式执行环境
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(conf);
@@ -49,61 +49,37 @@ public class Join_RegularJoin3 {
         StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);  // 创建表环境
 
         // 给Join的时候的状态设置ttl(要记得设置，否则状态会膨胀)
-        tEnv.getConfig().setIdleStateRetention(Duration.ofSeconds(10));  // 如果没有join操作10s，才会把左表状态清空
+        // tEnv.getConfig().setIdleStateRetention(Duration.ofSeconds(10));  // 如果没有join操作10s，才会把左表状态清空
 
-        tEnv.executeSql("CREATE TABLE t1(id string, name string" +
-                ") WITH (" +
-                " 'connector' = 'kafka'," +
-                " 'properties.bootstrap.servers'='hadoop162:9092', " +
-                " 'properties.group.id'='atguigu', " +
-                " 'topic' = 's1'," +
-                " 'format' = 'csv'" +
-                ")")
-                ;
-
-        tEnv.executeSql("CREATE TABLE t2(id string, age int" +
-                ") WITH (" +
-                " 'connector' = 'kafka'," +
-                " 'properties.bootstrap.servers'='hadoop162:9092', " +
-                " 'properties.group.id'='atguigu', " +
-                " 'topic' = 's2'," +
-                " 'format' = 'csv'" +
-                ")")
-                ;
-
-        Table result = tEnv.sqlQuery("select " +
-                "t1.id, " +
-                "name, " +
-                "age " +
-                "from t1" +
-                // "  join t2 on t1.id = t2.id");
-                " left  join t2 on t1.id = t2.id");
-
-        // tEnv.executeSql("CREATE TABLE t12(id string, name string, age int" +
+        // tEnv.executeSql("CREATE TABLE s3(id string, " +
+        //         " name string, " +
+        //         " age int, " +
+        //         " primary key(id) not enforced " +
         //         ") WITH (" +
-        //         " 'connector' = 'kafka'," +
+        //         " 'connector' = 'upsert-kafka'," +
         //         " 'properties.bootstrap.servers'='hadoop162:9092', " +
         //         " 'properties.group.id'='atguigu', " +
-        //         " 'topic' = 's12'," +
-        //         " 'format' = 'json'" +
+        //         " 'topic' = 's3', " +
+        //         " 'key.format' = 'json', " +
+        //         " 'value.format' = 'json'" +
         //         ")")
         //         ;
+        // tEnv.sqlQuery("select * from s3").execute().print();
 
-        tEnv.executeSql("CREATE TABLE t12(id string, " +
+        tEnv.executeSql("CREATE TABLE s3(id string, " +
                 " name string, " +
-                " age int, " +
-                " primary key(id) not enforced " +
+                " age int " +
+                // " ,primary key(id) not enforced " +
                 ") WITH (" +
-                " 'connector' = 'upsert-kafka'," +
+                " 'connector' = 'kafka'," +
                 " 'properties.bootstrap.servers'='hadoop162:9092', " +
-                " 'properties.group.id'='atguigu', " +
+                " 'properties.group.id'='abc', " +
                 " 'topic' = 's3', " +
-                " 'key.format' = 'json', " +
-                " 'value.format' = 'json'" +
+                " 'format' = 'json'" +
                 ")")
                 ;
 
-        result.executeInsert("t12");
+        tEnv.sqlQuery("select * from s3").execute().print();
 
 
         // 懒加载

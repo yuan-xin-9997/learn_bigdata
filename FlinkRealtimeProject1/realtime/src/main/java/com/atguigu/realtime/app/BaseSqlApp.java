@@ -1,12 +1,15 @@
 package com.atguigu.realtime.app;
 
+import com.atguigu.realtime.common.Constant;
 import com.atguigu.realtime.util.FlinkSourceUtil;
+import com.atguigu.realtime.util.SQLUtil;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
 import static java.lang.System.setProperty;
 
@@ -14,16 +17,14 @@ import static java.lang.System.setProperty;
  * @author: yuan.xin
  * @createTime: 2024/07/31 20:45
  * @contact: yuanxin9997@qq.com
- * @description: Flink 流处理 基座App
+ * @description: Flink SQL 基座 App
  */
-public abstract class BaseAppV1 {
+public abstract class BaseSqlApp {
     public static void main(String[] Args) {
 
     }
 
-    protected abstract void handle(StreamExecutionEnvironment env, DataStreamSource<String> stream);
-
-    public void init(int port, int parallelization, String ckPathAndGroupIdAndJobName, String topic ){
+    public void init(int port, int parallelization, String ckPathAndJobName){
         // 设置环境变量
         setProperty("HADOOP_USER_NAME", "atguigu");
 
@@ -42,28 +43,48 @@ public abstract class BaseAppV1 {
         // 设置参数
         env.enableCheckpointing(3000);
         env.setStateBackend(new HashMapStateBackend());
-        env.getCheckpointConfig().setCheckpointStorage("hdfs://hadoop162:8020/gmall/" + ckPathAndGroupIdAndJobName);
+        env.getCheckpointConfig().setCheckpointStorage("hdfs://hadoop162:8020/gmall/" + ckPathAndJobName);
         env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
         env.getCheckpointConfig().setCheckpointTimeout(20 * 1000);
         env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
         env.getCheckpointConfig().setMinPauseBetweenCheckpoints(500);
         env.getCheckpointConfig().setExternalizedCheckpointCleanup(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 
-        // 从Kafka读取数据
-        DataStreamSource<String> stream = env.addSource(
-                FlinkSourceUtil.getKafkaSource(ckPathAndGroupIdAndJobName, topic)
-        );
-        // stream.print();
+        // 创建表环境
+        StreamTableEnvironment tableEnvironment = StreamTableEnvironment.create(env);
 
         // 调用抽象方法
-        handle(env, stream);
+        handle(env, tableEnvironment);
 
         // 懒加载
         try {
-            env.execute(ckPathAndGroupIdAndJobName);
+            env.execute(ckPathAndJobName);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
+    /**
+     * 需要由子类实现的抽象方法 - 用来处理业务逻辑
+     * @param env
+     * @param tEnv
+     */
+    protected abstract void handle(StreamExecutionEnvironment env, StreamTableEnvironment tEnv);
+
+    /**
+     * 读取Kafka Topic数据（ODS_DB)的数据
+     * @param tEnv
+     */
+    public void readOdsDb(StreamTableEnvironment tEnv, String groupId){
+        tEnv.executeSql("create table ods_db(" +
+                " `database` string, " +
+                " `table` string, " +
+                " `type` string, " +
+                " `ts` bigint, " +
+                " `data` map<string, string>, " +
+                " `old` map<string, string>, " +
+                " `pt` as proctime() " +  // lookup join 的时候使用
+                ") " + SQLUtil.getKafkaSource(Constant.TOPIC_ODS_DB, groupId))
+                ;
+    }
 }

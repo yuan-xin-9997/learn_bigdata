@@ -183,6 +183,14 @@
             <version>${flink.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <!-- add the dependency matching your database -->
+            <artifactId>flink-connector-jdbc_2.11</artifactId>
+            <!-- The dependency is available only for stable releases, SNAPSHOT dependency need build by yourself. -->
+            <version>1.13.6</version>
+        </dependency>
+
 
     </dependencies>
 
