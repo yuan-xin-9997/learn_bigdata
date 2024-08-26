@@ -56,12 +56,12 @@ public abstract class BaseSqlApp {
         // 调用抽象方法
         handle(env, tableEnvironment);
 
-        // 懒加载
-        try {
-            env.execute(ckPathAndJobName);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        // 懒加载  纯SQL文件用不上
+        // try {
+        //     env.execute(ckPathAndJobName);
+        // } catch (Exception e) {
+        //     throw new RuntimeException(e);
+        // }
     }
 
     /**
@@ -87,4 +87,25 @@ public abstract class BaseSqlApp {
                 ") " + SQLUtil.getKafkaSource(Constant.TOPIC_ODS_DB, groupId))
                 ;
     }
+
+    /**
+     * 读取字典表
+     * 基于 Lookup Join(Flink SQL实现 事实表join维度表) 实现
+     * @param tEnv
+     */
+    public void readBaseDic(StreamTableEnvironment tEnv) {
+        tEnv.executeSql("CREATE TABLE base_dic(" +
+                "  dic_code string, " +
+                "  dic_name string " +
+                ") WITH (" +
+                " 'connector' = 'jdbc'," +
+                " 'url' = 'jdbc:mysql://hadoop162:3306/gmall2022?useSSL=false', " +
+                " 'table-name' = 'base_dic', " +
+                " 'username' = 'root', " +
+                " 'password' = 'aaaaaa'," +
+                " 'lookup.cache.max-rows'='10', " +
+                " 'lookup.cache.ttl'='1 hour' " +
+                ")");
+    }
+
 }

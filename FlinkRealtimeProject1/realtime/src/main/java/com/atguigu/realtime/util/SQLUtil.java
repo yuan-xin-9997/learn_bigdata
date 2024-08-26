@@ -1,6 +1,5 @@
 package com.atguigu.realtime.util;
 
-import com.atguigu.realtime.app.dwd.log.Dwd_04_DwdTradeCartAdd;
 import com.atguigu.realtime.common.Constant;
 
 /**
@@ -22,6 +21,15 @@ public class SQLUtil {
                 " 'topic' = '" + topic + "', " +
                 " 'format' = 'json', " +
                 " 'scan.startup.mode' = 'latest-offset' " +
+                ")";
+    }
+
+    public static String getKafkaSink(String topic) {
+        return "with(" +
+                " 'connector' = 'kafka'," +
+                " 'properties.bootstrap.servers'='"  + Constant.KAFKA_BROKERS +  " ', " +
+                " 'topic' = '" + topic + "', " +
+                " 'format' = 'json' " +
                 ")";
     }
 }

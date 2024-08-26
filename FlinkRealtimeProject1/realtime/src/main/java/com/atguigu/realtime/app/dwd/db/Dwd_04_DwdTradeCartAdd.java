@@ -1,9 +1,10 @@
-package com.atguigu.realtime.app.dwd.log;
+package com.atguigu.realtime.app.dwd.db;
 
 import com.atguigu.realtime.app.BaseSqlApp;
 import com.atguigu.realtime.common.Constant;
 import com.atguigu.realtime.util.SQLUtil;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
 /**
@@ -59,18 +60,83 @@ public class Dwd_04_DwdTradeCartAdd extends BaseSqlApp {
         //         ") " + SQLUtil.getKafkaSource(Constant.TOPIC_ODS_DB, "Dwd_04_DwdTradeCartAdd"))
         //         ;
         readOdsDb(tEnv, "Dwd_04_DwdTradeCartAdd");
-        tEnv.sqlQuery("select * from ods_db")
-                .execute()
-                .print();
+        // tEnv.sqlQuery("select * from ods_db")
+        //         .execute()
+        //         .print();
 
         // 2. 过滤出加购数据cart_info
-        tEnv.sqlQuery("select" +
-                "" +
-                "from ods_db " +
-                "where `database` = 'gmall2022' " +
-                "and `table` = 'cart_info' " +
-                "and `type` = 'cart_info' "
-        )
+        Table cartInfo = tEnv.sqlQuery("select " +
+                // "`data`['id'] id," +
+                // "`data`['user_id'] user_id," +
+                // "`data`['sku_id'] sku_id," +
+                // "source_id,\n" +
+                // "source_type,\n" +
+                // " if(`type`='insert', " +
+                // " cast(`data`['sku_num'] as int),  " +
+                // "  cast(`data`['sku_num'] as int) - cast(`old`['sku_num'] as int) ) sku_num " +
+                "data['id'] id,\n" +
+                "data['user_id'] user_id,\n" +
+                "data['sku_id'] sku_id,\n" +
+                "data['source_id'] source_id,\n" +
+                "data['source_type'] source_type,\n" +
+                "if(`type` = 'insert',\n" +
+                "data['sku_num'],cast((cast(data['sku_num'] as int) - cast(`old`['sku_num'] as int)) as string)) sku_num,\n" +
+                "ts,\n" +
+                "pt\n" +
+                " from ods_db " +
+                " where `database` = 'gmall2022' " +
+                " and `table` = 'cart_info' " +
+                " and (" +
+                " `type`='insert' " +
+                "  or (`type`='update' " +
+                "      and `old`['sku_num'] is not null" +
+                "      and  cast(`data`['sku_num'] as int) > cast(`old`['sku_num'] as int) )" +  // 由于sku_num字段变大导致的update
+                ") "
+        );// .execute()
+// .print()
+
+        // 3.读取字典表
+        readBaseDic(tEnv);
+
+        // 4. 维度退化（cartInfo和字典表进行join）
+        tEnv.createTemporaryView("cart_info", cartInfo);  // 注册临时表
+        Table result = tEnv.sqlQuery("select " +
+                "ci.id,\n" +
+                "ci.user_id,\n" +
+                "ci.sku_id,\n" +
+                "ci.source_id,\n" +
+                "ci.source_type,\n" +
+                "dic.dic_name source_type_name,\n" +
+                "ci.sku_num,\n" +
+                "ci.ts\n" +
+                " from cart_info ci " +
+                " join base_dic for system_time as of ci.pt as dic" +  // lookup join 实现事实表和维度表join
+                " on ci.source_type=dic.dic_code " +
+                "");
+
+        // result.execute().print();
+
+        // 将结果写入到kafka
+        // 5. 定义一个动态表与kafka的topic关联
+        tEnv.executeSql("" +
+                "create table dwd_trade_cart_add(\n" +
+                "id string,\n" +
+                "user_id string,\n" +
+                "sku_id string,\n" +
+                "source_id string,\n" +
+                "source_type_code string,\n" +
+                "source_type_name string,\n" +
+                "sku_num string,\n" +
+                // "ts string\n" +
+                "ts bigint\n" +
+                ") " + SQLUtil.getKafkaSink(Constant.TOPIC_DWD_TRADE_CART_ADD)
+        );
+
+        result.executeInsert("dwd_trade_cart_add");
+
+        // QA:Exception in thread "main" org.apache.flink.table.api.ValidationException: Column types of query result and sink for registered table 'default_catalog.default_database.dwd_trade_cart_add' do not match.
+        // Cause: Incompatible types for sink column 'ts' at position 7.
+
 
     }
 }
