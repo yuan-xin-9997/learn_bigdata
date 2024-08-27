@@ -1,9 +1,13 @@
 package com.atguigu.realtime.app.dwd.db;
 
 import com.atguigu.realtime.app.BaseSqlApp;
+import com.atguigu.realtime.common.Constant;
+import com.atguigu.realtime.util.SQLUtil;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+
+import static org.apache.calcite.linq4j.tree.ExpressionType.Constant;
 
 /**
  * @author: yuan.xin
@@ -93,12 +97,111 @@ public class Dwd05_DwdTradeOrderPreProcess extends BaseSqlApp {
                 " and (`type`='insert' or `type`='update' )" +
                 "");
         tEnv.createTemporaryView("order_info", orderInfo);  // 注册临时表
-        orderInfo.execute().print();
+        // orderInfo.execute().print();
 
         // 5. 过滤 活动表
+        Table orderDetailActivity = tEnv.sqlQuery(" select " +
+                "data['order_detail_id'] order_detail_id,\n" +
+                "data['activity_id'] activity_id,\n" +
+                "data['activity_rule_id'] activity_rule_id\n" +
+                " from ods_db" +
+                " where `database`='gmall2022' " +
+                " and `table` = 'order_detail_activity' " +
+                " and (`type`='insert' )" +
+                "");
+        tEnv.createTemporaryView("order_detail_activity", orderDetailActivity);  // 注册临时表
+
         // 6. 过滤 优惠券使用情况
-        // 7. 5张表join
+        Table orderDetailCoupon = tEnv.sqlQuery(" select " +
+                "data['order_detail_id'] order_detail_id,\n" +
+                "data['coupon_id'] coupon_id\n" +
+                " from ods_db" +
+                " where `database`='gmall2022' " +
+                " and `table` = 'order_detail_coupon' " +
+                " and (`type`='insert' )" +
+                "");
+        tEnv.createTemporaryView("order_detail_coupon", orderDetailCoupon);  // 注册临时表
+
+        // 7.    5张表join
+        Table resultTable = tEnv.sqlQuery("select \n" +
+                "od.id,\n" +
+                "od.order_id,\n" +
+                "oi.user_id,\n" +
+                "oi.order_status,\n" +
+                "od.sku_id,\n" +
+                "od.sku_name,\n" +
+                "oi.province_id,\n" +
+                "act.activity_id,\n" +
+                "act.activity_rule_id,\n" +
+                "cou.coupon_id,\n" +
+                "date_format(od.create_time, 'yyyy-MM-dd') date_id,\n" +
+                "od.create_time,\n" +
+                "date_format(oi.operate_time, 'yyyy-MM-dd') operate_date_id,\n" +
+                "oi.operate_time,\n" +
+                "od.source_id,\n" +
+                "od.source_type,\n" +
+                "dic.dic_name source_type_name,\n" +
+                "od.sku_num,\n" +
+                "od.split_original_amount,\n" +
+                "od.split_activity_amount,\n" +
+                "od.split_coupon_amount,\n" +
+                "od.split_total_amount,\n" +
+                "oi.`type`,\n" +
+                "oi.`old`,\n" +
+                "od.od_ts,\n" +
+                "oi.oi_ts,\n" +
+                "current_row_timestamp() row_op_ts\n" +
+                "from order_detail od \n" +
+                "join order_info oi\n" +
+                "on od.order_id = oi.id\n" +
+                "left join order_detail_activity act\n" +
+                "on od.id = act.order_detail_id\n" +
+                "left join order_detail_coupon cou\n" +
+                "on od.id = cou.order_detail_id\n" +
+                "join `base_dic` for system_time as of od.pt as dic\n" +
+                "on od.source_type = dic.dic_code");
+        tEnv.createTemporaryView("result_table", resultTable);
+
         // 8. 定义动态表与输出的topic关联
+        tEnv.executeSql("" +
+                "create table dwd_trade_order_pre_process(\n" +
+                "id string,\n" +
+                "order_id string,\n" +
+                "user_id string,\n" +
+                "order_status string,\n" +
+                "sku_id string,\n" +
+                "sku_name string,\n" +
+                "province_id string,\n" +
+                "activity_id string,\n" +
+                "activity_rule_id string,\n" +
+                "coupon_id string,\n" +
+                "date_id string,\n" +
+                "create_time string,\n" +
+                "operate_date_id string,\n" +
+                "operate_time string,\n" +
+                "source_id string,\n" +
+                "source_type string,\n" +
+                "source_type_name string,\n" +
+                "sku_num string,\n" +
+                "split_original_amount string,\n" +
+                "split_activity_amount string,\n" +
+                "split_coupon_amount string,\n" +
+                "split_total_amount string,\n" +
+                "`type` string,\n" +
+                "`old` map<string,string>,\n" +
+                "od_ts string,\n" +
+                "oi_ts string,\n" +
+                "row_op_ts timestamp_ltz(3),\n" +
+                "primary key(id) not enforced\n" +
+                ")" + SQLUtil.getKafkaSink(com.atguigu.realtime.common.Constant.TOPIC_DWD_TRADE_ORDER_PRE_PROCESS)
+        )
+                ;
+
         // 9. 将join结果写出到输出的表
+        // tEnv.executeSql("" +
+        //         "insert into dwd_trade_order_pre_process \n" +
+        //         "select * from result_table")
+        //         .print();
+        resultTable.executeInsert("dwd_trade_order_pre_process");
     }
 }

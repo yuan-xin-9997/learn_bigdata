@@ -83,7 +83,7 @@ public abstract class BaseSqlApp {
                 " `ts` bigint, " +
                 " `data` map<string, string>, " +
                 " `old` map<string, string>, " +
-                " `pt` as proctime() " +  // lookup join 的时候使用
+                " `pt` as proctime() " +  // 增加处理时间字段，供后面 lookup join 的时候使用
                 ") " + SQLUtil.getKafkaSource(Constant.TOPIC_ODS_DB, groupId))
                 ;
     }
