@@ -1,9 +1,11 @@
 package com.atguigu.realtime.app.dwd.db;
 
 import com.atguigu.realtime.app.BaseSqlApp;
+import com.atguigu.realtime.common.Constant;
 import com.atguigu.realtime.util.SQLUtil;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
 /**
@@ -72,23 +74,68 @@ public class Dwd09_DwdTradeOrderRefund extends BaseSqlApp {
                         " and `type`='insert' " +
                         " ");
         tEnv.createTemporaryView("order_refund_info", orderRefundInfo);
-        orderRefundInfo.execute().print();
+        // orderRefundInfo.execute().print();
 
         // 4. 过滤订单表
         Table orderInfo = tEnv.sqlQuery(
                 "select " +
-
+                        " data['id'] id,\n" +
+                        " data['province_id'] province_id,\n" +
+                        " `old`\n" +
                         " from ods_db" +
                         " where `database`='gmall2022' " +
                         " and `table` = 'order_info' " +
                         " and `type`='update' " +
-                        " and `old`['']" +
+                        " and `old`['order_status'] is not null " +
+                        " and `data`['order_status'] = '1005' " +
                         " ");
+        tEnv.createTemporaryView("order_info", orderInfo);
 
         // 5. join 退单表 订单表 字典表 3张
+        Table result = tEnv.sqlQuery(
+                "select " +
+                        "ri.id,\n" +
+                        "ri.user_id,\n" +
+                        "ri.order_id,\n" +
+                        "ri.sku_id,\n" +
+                        "oi.province_id,\n" +
+                        "date_format(ri.create_time,'yyyy-MM-dd') date_id,\n" +
+                        "ri.create_time,\n" +
+                        "ri.refund_type,\n" +
+                        "dic1.dic_name,\n" +
+                        "ri.refund_reason_type,\n" +
+                        "dic2.dic_name,\n" +
+                        "ri.refund_reason_txt,\n" +
+                        "ri.refund_num,\n" +
+                        "ri.refund_amount,\n" +
+                        "ri.ts,\n" +
+                        "current_row_timestamp() row_op_ts\n" +
+                        " from order_refund_info ri " +
+                        " join order_info oi" +
+                        " on ri.order_id = oi.id " +
+                        " join base_dic for system_time as of ri.pt as dic1 on ri.refund_type=dic1.dic_code " +
+                        " join base_dic for system_time as of ri.pt as dic2 on ri.refund_reason_type=dic2.dic_code "
+        );
 
         // 6. 写出到kafka中
-
-
+        tEnv.executeSql("create table dwd_trade_order_refund(\n" +
+                "id string,\n" +
+                "user_id string,\n" +
+                "order_id string,\n" +
+                "sku_id string,\n" +
+                "province_id string,\n" +
+                "date_id string,\n" +
+                "create_time string,\n" +
+                "refund_type_code string,\n" +
+                "refund_type_name string,\n" +
+                "refund_reason_type_code string,\n" +
+                "refund_reason_type_name string,\n" +
+                "refund_reason_txt string,\n" +
+                "refund_num string,\n" +
+                "refund_amount string,\n" +
+                "ts bigint,\n" +
+                "row_op_ts timestamp_ltz(3)\n" +
+                ")" + SQLUtil.getKafkaSink(Constant.TOPIC_DWD_TRADE_ORDER_REFUND));
+        result.executeInsert("dwd_trade_order_refund");
     }
 }
