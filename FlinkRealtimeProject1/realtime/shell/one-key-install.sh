@@ -8,6 +8,7 @@ xcall " /opt/module/doris-1.1.1/be/bin/stop_fe.sh; \
         sudo rm -rf /etc/doris
       "
 
+cd /opt/software
 tar -zxvf apache-doris-1.1.1-bin-x86.tar.gz -C /opt/module
 mv /opt/module/apache-doris-1.1.1-bin-x86 /opt/module/doris-1.1.1
 my_rsync /opt/module/doris-1.1.1
