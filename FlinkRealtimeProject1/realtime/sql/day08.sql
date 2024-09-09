@@ -138,3 +138,119 @@ explain select city,sum(cost) from example_site_visit group by city;
 alter table example_site_visit add rollup rollup_city_age_cost_maxd_mind(city,age,cost,max_dwell_time,min_dwell_time);
 select * from example_site_visit;
 
+
+select * from test_db.example_log;
+
+CREATE TABLE IF NOT EXISTS test_db.example_log
+(
+    `timestamp` DATETIME NOT NULL COMMENT "日志时间",
+    `type` INT NOT NULL COMMENT "日志类型",
+    `error_code` INT COMMENT "错误码",
+    `error_msg` VARCHAR(1024) COMMENT "错误详细信息",
+    `op_id` BIGINT COMMENT "负责人id",
+    `op_time` DATETIME COMMENT "处理时间"
+)
+DUPLICATE KEY(`timestamp`, `type`)
+DISTRIBUTED BY HASH(`timestamp`) BUCKETS 10;
+
+alter table example_log add rollup rollup_types(type, timestamp, error_code, error_msg, op_id, op_time);
+
+SHOW ALTER TABLE ROLLUP;
+
+explain select * from example_log where timestamp='2020-10-01 00:00:00';
+explain select * from example_log where type=1;
+
+desc test_db.example_log all;
+
+create table sales_records(
+record_id int,
+  seller_id int,
+  store_id int,
+  sale_date date,
+  sale_amt bigint
+)
+distributed by hash(record_id)
+properties("replication_num" = "1");
+
+
+insert into sales_records values(1,2,3,'2020-02-02',10);
+
+# 需要在Linux命令行执行
+# mysql -h hadoop162 -uroot -P 9030 -paaaaaa
+create materialized view store_amt as
+select
+store_id,
+sum(sale_amt)
+from sales_records
+group by store_id;
+
+
+SHOW ALTER TABLE MATERIALIZED VIEW FROM test_db;
+
+desc sales_records all;
+
+EXPLAIN SELECT store_id, sum(sale_amt) FROM sales_records GROUP BY store_id;
+EXPLAIN SELECT seller_id, sum(sale_amt) FROM sales_records GROUP BY seller_id;
+EXPLAIN SELECT sum(sale_amt) FROM sales_records;
+
+
+create table advertiser_view_record(
+time date,
+advertiser varchar(10),
+channel varchar(10),
+user_id int
+)
+distributed by hash(time)
+properties("replication_num" = "1");
+
+insert into advertiser_view_record values('2020-02-02','a','app',123);
+
+create materialized view advertiser_uv as
+select
+advertiser,
+channel,
+bitmap_union(to_bitmap(user_id))
+from advertiser_view_record
+group by advertiser, channel;
+
+explain SELECT advertiser, channel, count(distinct user_id) FROM  advertiser_view_record GROUP BY advertiser, channel;
+
+explain select record_id,seller_id,store_id from sales_records where store_id=3;
+
+create materialized view mv_1 as
+select
+  store_id,
+  record_id,
+  seller_id,
+  sale_date,
+  sale_amt
+from sales_records;
+
+desc sales_records all;
+
+explain select record_id,seller_id,store_id from sales_records where store_id=3;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
