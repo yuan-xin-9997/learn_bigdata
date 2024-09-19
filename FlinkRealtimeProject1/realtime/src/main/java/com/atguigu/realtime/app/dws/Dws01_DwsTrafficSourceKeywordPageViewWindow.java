@@ -152,11 +152,11 @@ public class Dws01_DwsTrafficSourceKeywordPageViewWindow extends BaseSqlApp {
         Table result = tEnv
                 .sqlQuery("" +
                         "select " +
-                        " window_start stt, " +
-                        " window_end edt, " +
-                        " 'search' source" +
+                        " date_format(window_start, 'yyyy-MM-dd HH:mm:ss') stt, " +
+                        " date_format(window_end, 'yyyy-MM-dd HH:mm:ss') edt, " +
+                        " 'search' source, " +
                         " kw keyword, " +
-                        " date_format(  ) cur_date, " +  // 统计日期
+                        " date_format(window_start, 'yyyy-MM-dd' ) cur_date, " +  // 统计日期
                         " count(*) keyword_count " +
                         " from" +
                         " table( tumble( table kw_table, descriptor(et), interval '5' second ) ) " +  // flink sql 滚动窗口
@@ -202,15 +202,14 @@ public class Dws01_DwsTrafficSourceKeywordPageViewWindow extends BaseSqlApp {
                 " keyword_count bigint " +
                 ") with(" +
                 " 'connector'='doris', " +
-                " 'fenodes'='doris', " +
+                " 'fenodes'='hadoop162:7030', " +
                 " 'table.identifier'='gmall2022.dws_traffic_source_keyword_page_view_window', " +
                 " 'username'='root', " +
-                " 'password'='aaaaaa', " +
+                " 'password'='aaaaaa' " +
                 ")")
                 ;
 
-        //
-        //
+        result.executeInsert("kw");
     }
 }
 
@@ -224,4 +223,17 @@ idea 输出乱码，如何解决？
 | +I |                          apple | 2024-09-11 20:24:24.000 |
 | +I |                           ???? | 2024-09-11 20:24:34.000 |
 | +I |                           ???? | 2024-09-11 20:24:34.000 |
+
+doris
+查看时区 show variables like '%time_zone%';
+设置时区（全局生效） set global time_zone='Asia/Shanghai';
+设置时区（当前会话生效） set time_zone='Asia/Shanghai';
+
+
+QA
+1029 [doris-streamload-output-format-thread-1] ERROR org.apache.doris.flink.table.DorisDynamicOutputFormat  - doris sink error, retry times = 2
+org.apache.doris.flink.exception.StreamLoadException: stream load error: errCode = 2, detailMessage = data cannot be inserted into table with empty partition. Use `SHOW PARTITIONS FROM dws_traffic_source_keyword_page_view_window` to see the currently partitions of this table. , see more in null
+	at org.apache.doris.flink.table.DorisStreamLoad.load(DorisStreamLoad.java:109)
+	at org.apache.doris.flink.table.DorisDynamicOutputFormat.flush(DorisDynamicOutputFormat.java:319)
+	at org.apache.doris.flink.table.DorisDynamicOutputFormat.lambda$open$1(DorisDynamicOutputFormat.java:205)
  */
