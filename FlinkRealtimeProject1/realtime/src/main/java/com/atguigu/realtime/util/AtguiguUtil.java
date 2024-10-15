@@ -27,4 +27,8 @@ public class AtguiguUtil {
         it.forEach(list::add);
         return list;
     }
+
+    public static String toDateTime(long ts) {
+        return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(ts);
+    }
 }

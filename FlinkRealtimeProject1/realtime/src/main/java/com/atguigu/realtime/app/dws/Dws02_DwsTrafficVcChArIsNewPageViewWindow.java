@@ -4,11 +4,24 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.atguigu.realtime.app.BaseAppV1;
 import com.atguigu.realtime.app.BaseAppV2;
+import com.atguigu.realtime.bean.TrafficPageViewBean;
 import com.atguigu.realtime.common.Constant;
 import com.atguigu.realtime.util.AtguiguUtil;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
+import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+import org.apache.flink.util.Collector;
+import org.apache.flink.util.OutputTag;
+import scala.collection.Iterable;
 
+import java.time.Duration;
 import java.util.HashMap;
 
 /**
@@ -64,34 +77,194 @@ public class Dws02_DwsTrafficVcChArIsNewPageViewWindow extends BaseAppV2 {
     @Override
     protected void handle(StreamExecutionEnvironment env, HashMap<String, DataStreamSource<String>> streams) {
         // 是否能消费到流
-        streams.get(Constant.TOPIC_DWD_TRAFFIC_PAGE).print(Constant.TOPIC_DWD_TRAFFIC_PAGE);
-        streams.get(Constant.TOPIC_DWD_TRAFFIC_UNIQUE_VISITOR_DETAIL).print(Constant.TOPIC_DWD_TRAFFIC_UNIQUE_VISITOR_DETAIL);
-        streams.get(Constant.TOPIC_DWD_TRAFFIC_USER_JUMP_DETAIL).print(Constant.TOPIC_DWD_TRAFFIC_UNIQUE_VISITOR_DETAIL);
+        // streams.get(Constant.TOPIC_DWD_TRAFFIC_PAGE).print(Constant.TOPIC_DWD_TRAFFIC_PAGE);
+        // streams.get(Constant.TOPIC_DWD_TRAFFIC_UNIQUE_VISITOR_DETAIL).print(Constant.TOPIC_DWD_TRAFFIC_UNIQUE_VISITOR_DETAIL);
+        // streams.get(Constant.TOPIC_DWD_TRAFFIC_USER_JUMP_DETAIL).print(Constant.TOPIC_DWD_TRAFFIC_UNIQUE_VISITOR_DETAIL);
 
         // 1. 把流转成同一种类型，然后union成一个流
-        parseAndUnionOne(streams);
+        DataStream<TrafficPageViewBean> beanStream = parseAndUnionOne(streams);
+        // beanStream.print("beanStream");
 
         // 2. 开窗聚合
-
+        SingleOutputStreamOperator<TrafficPageViewBean> resultStream = windowAndAgg(beanStream);
+        resultStream.print("normal");
+        DataStream<TrafficPageViewBean> sideOutput = resultStream.getSideOutput(new OutputTag<TrafficPageViewBean>("late") {
+        });
+        sideOutput.print("late");
         // 3. 写到doris中
     }
 
-    private void parseAndUnionOne(HashMap<String, DataStreamSource<String>> streams) {
-        streams.get(Constant.TOPIC_DWD_TRAFFIC_PAGE)
+    /**
+     * 开窗聚合函数
+     *
+     * 开窗聚合前有uv数据，开窗聚合后，没有uv的数据，为什么？
+     *  怀疑uv数据迟到了，窗口关闭了，但是数据还没来
+         *  求证是否真的迟到
+     *          使用侧输出流，迟到的数据会被放入到侧输出流中
+         *  如果真的迟到，找原因
+     *           计算uv的时候，有窗口数据来的比较慢
+     *  找到解决措施
+     * @param beanStream
+     * @return
+     */
+    private SingleOutputStreamOperator<TrafficPageViewBean> windowAndAgg(DataStream<TrafficPageViewBean> beanStream) {
+        return beanStream
+                .assignTimestampsAndWatermarks(
+                        WatermarkStrategy
+                                .<TrafficPageViewBean>forBoundedOutOfOrderness(Duration.ofSeconds(3))
+                                .withTimestampAssigner((bean, ts) -> bean.getTs())
+                )
+                .keyBy(bean -> bean.getVc() + "_" + bean.getCh() + "_" + bean.getAr() + "_" + bean.getIsNew())
+                .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+                .sideOutputLateData(new OutputTag<TrafficPageViewBean>("late"){})
+                .reduce(
+                        new ReduceFunction<TrafficPageViewBean>() {
+                            @Override
+                            public TrafficPageViewBean reduce(TrafficPageViewBean bean1,
+                                                              TrafficPageViewBean bean2) throws Exception {
+                                bean1.setPvCt(bean1.getPvCt() + bean2.getPvCt());
+                                bean1.setSvCt(bean1.getSvCt() + bean2.getSvCt());
+                                bean1.setUvCt(bean1.getUvCt() + bean2.getUvCt());
+                                bean1.setUjCt(bean1.getUjCt() + bean2.getUjCt());
+                                bean1.setDurSum(bean1.getDurSum() + bean2.getDurSum());
+                                // bean1.setTs(System.currentTimeMillis());
+                                return bean1;
+                            }
+                        }
+                        , new ProcessWindowFunction<TrafficPageViewBean, TrafficPageViewBean, String, TimeWindow>() {
+                            @Override
+                            public void process(String key,
+                                                ProcessWindowFunction<TrafficPageViewBean, TrafficPageViewBean, String, TimeWindow>.Context ctx,
+                                                java.lang.Iterable<TrafficPageViewBean> elements,
+                                                Collector<TrafficPageViewBean> out) throws Exception {
+                                TrafficPageViewBean bean = elements.iterator().next();
+                                bean.setStt(AtguiguUtil.toDateTime(ctx.window().getStart()));
+                                bean.setEdt(AtguiguUtil.toDateTime(ctx.window().getEnd()));
+                                bean.setCurDate(AtguiguUtil.toDateTime(System.currentTimeMillis()));
+                                out.collect(bean);
+                            }
+                        }
+                );
+    }
+
+    private DataStream<TrafficPageViewBean> parseAndUnionOne(HashMap<String, DataStreamSource<String>> streams) {
+        // 1. pv sv during_sum 的流
+        SingleOutputStreamOperator<TrafficPageViewBean> pvSvDuringSumStream = streams.get(Constant.TOPIC_DWD_TRAFFIC_PAGE)
                 .map(
                         json -> {
                             // 计算 pv sv during_sum
                             JSONObject obj = JSON.parseObject(json);
                             JSONObject common = obj.getJSONObject("common");
+                            JSONObject page = obj.getJSONObject("page");
+
                             String vc = common.getString("vc");
                             String ch = common.getString("ch");
                             String ar = common.getString("ar");
                             String isNew = common.getString("is_new");
 
                             // String curDate = AtguiguUtil.toDate(System.currentTimeMillis());
+                            Long uvCt = 0L;
+                            Long svCt = page.getString("last_page_id") == null ? 1L : 0L;
+                            Long pvCt = 1L;
+                            Long durSum = page.getLong("during_time");
+                            Long ujCt = 0L;
+                            Long ts = obj.getLong("ts");
 
+                            return new TrafficPageViewBean(
+                                    "", "",  // 只有到开窗聚合之后才有窗口时间
+                                    vc,
+                                    ch,
+                                    ar,
+                                    isNew,
+                                    "",  // 当天日期，等待聚合后，再添加也不迟
+                                    uvCt,  // 以下为指标列
+                                    svCt,
+                                    pvCt,
+                                    durSum,
+                                    ujCt,
+                                    ts
+                            );
                         }
                 );
+
+        // 2. uv 的流
+        SingleOutputStreamOperator<TrafficPageViewBean> uvStream = streams.get(Constant.TOPIC_DWD_TRAFFIC_UNIQUE_VISITOR_DETAIL)
+                .map(
+                        json -> {
+                            JSONObject obj = JSON.parseObject(json);
+                            JSONObject common = obj.getJSONObject("common");
+                            JSONObject page = obj.getJSONObject("page");
+
+                            String vc = common.getString("vc");
+                            String ch = common.getString("ch");
+                            String ar = common.getString("ar");
+                            String isNew = common.getString("is_new");
+
+                            // String curDate = AtguiguUtil.toDate(System.currentTimeMillis());
+                            Long uvCt = 1L;
+                            Long svCt = 0L;
+                            Long pvCt = 0L;
+                            Long durSum = 0L;
+                            Long ujCt = 0L;
+                            Long ts = obj.getLong("ts");
+
+                            return new TrafficPageViewBean(
+                                    "", "",  // 只有到开窗聚合之后才有窗口时间
+                                    vc,
+                                    ch,
+                                    ar,
+                                    isNew,
+                                    "",  // 当天日期，等待聚合后，再添加也不迟
+                                    uvCt,  // 以下为指标列
+                                    svCt,
+                                    pvCt,
+                                    durSum,
+                                    ujCt,
+                                    ts
+                            );
+                        }
+                );
+
+        // 3. uj 的流
+        SingleOutputStreamOperator<TrafficPageViewBean> ujStream = streams.get(Constant.TOPIC_DWD_TRAFFIC_USER_JUMP_DETAIL)
+                .map(
+                        json -> {
+                            JSONObject obj = JSON.parseObject(json);
+                            JSONObject common = obj.getJSONObject("common");
+                            JSONObject page = obj.getJSONObject("page");
+
+                            String vc = common.getString("vc");
+                            String ch = common.getString("ch");
+                            String ar = common.getString("ar");
+                            String isNew = common.getString("is_new");
+
+                            // String curDate = AtguiguUtil.toDate(System.currentTimeMillis());
+                            Long uvCt = 0L;
+                            Long svCt = 0L;
+                            Long pvCt = 0L;
+                            Long durSum = 0L;
+                            Long ujCt = 1L;
+                            Long ts = obj.getLong("ts");
+
+                            return new TrafficPageViewBean(
+                                    "", "",  // 只有到开窗聚合之后才有窗口时间
+                                    vc,
+                                    ch,
+                                    ar,
+                                    isNew,
+                                    "",  // 当天日期，等待聚合后，再添加也不迟
+                                    uvCt,  // 以下为指标列
+                                    svCt,
+                                    pvCt,
+                                    durSum,
+                                    ujCt,
+                                    ts
+                            );
+                        }
+                );
+
+        // 4. 三个流合并
+        return pvSvDuringSumStream.union(uvStream, ujStream);
     }
 }
 
