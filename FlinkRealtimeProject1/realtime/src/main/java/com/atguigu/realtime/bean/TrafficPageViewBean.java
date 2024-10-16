@@ -1,5 +1,6 @@
 package com.atguigu.realtime.bean;
 
+import com.alibaba.fastjson.annotation.JSONField;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
@@ -16,7 +17,9 @@ public class TrafficPageViewBean {
     String ch;
     // 地区
     String ar;
+
     // 新老访客状态标记
+    // @JSONField(name = "is_new")  // bean的属性名和数据库中的字段名不一致，这里添加一个注解，完成转换
     String isNew ;
     // 当天日期
     String curDate;
@@ -30,7 +33,9 @@ public class TrafficPageViewBean {
     Long durSum;
     // 跳出会话数
     Long ujCt;
+
     // 时间戳
     // @TransientSink
+    @JSONField(serialize = false)  // 这个字段不需要序列化到json字符串中，可以加注解， 不加也可以，doris不会报错
     Long ts;
 }
