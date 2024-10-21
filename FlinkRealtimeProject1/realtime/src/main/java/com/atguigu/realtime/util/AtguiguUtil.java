@@ -10,7 +10,7 @@ import java.util.List;
  * @author: yuan.xin
  * @createTime: 2024/08/14 21:21
  * @contact: yuanxin9997@qq.com
- * @description:
+ * @description: 工具类
  */
 public class AtguiguUtil {
     public static void main(String[] Args) {
@@ -30,5 +30,9 @@ public class AtguiguUtil {
 
     public static String toDateTime(long ts) {
         return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(ts);
+    }
+
+    public static Long toTimeStamp(String lastLoginDate) {
+
     }
 }
