@@ -9,6 +9,8 @@ import com.atguigu.realtime.bean.UserLoginBean;
 import com.atguigu.realtime.common.Constant;
 import com.atguigu.realtime.util.AtguiguUtil;
 import com.atguigu.realtime.util.FlinkSinkUtil;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.configuration.Configuration;
@@ -16,7 +18,13 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
+import org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFunction;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
+import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
+
+import java.time.Duration;
 
 /**
  * @author: yuan.xin
@@ -47,6 +55,29 @@ import org.apache.flink.util.Collector;
  * 7）开窗，聚合
  * 度量字段求和，补充窗口起始和结束时间，时间戳字段置为当前系统时间，用于 ClickHouse 数据去重。
  * 8）写入 Doris
+ *
+ * 10.4.4 Doris建表语句
+ * drop table if exists dws_user_user_login_window;
+ * create table if not exists dws_user_user_login_window
+ * (
+ *     `stt`      DATETIME comment '窗口起始时间',
+ *     `edt`      DATETIME comment '窗口结束时间',
+ *     `cur_date` DATE comment '当天日期',
+ *     `back_ct`  BIGINT replace comment '回流用户数',
+ *     `uu_ct`    BIGINT replace comment '独立用户数'
+ * ) engine = olap aggregate key (`stt`, `edt`, `cur_date`)
+ * comment "用户域用户登陆各窗口汇总表"
+ * partition by range(`cur_date`)()
+ * distributed by hash(`stt`) buckets 10 properties (
+ *   "replication_num" = "3",
+ *   "dynamic_partition.enable" = "true",
+ *   "dynamic_partition.time_unit" = "DAY",
+ *   "dynamic_partition.start" = "-1",
+ *   "dynamic_partition.end" = "1",
+ *   "dynamic_partition.prefix" = "par",
+ *   "dynamic_partition.buckets" = "10",
+ *   "dynamic_partition.hot_partition_num" = "1"
+ * );
  */
 public class Dws04_DwsUserUserLoginWindow extends BaseAppV1 {
     public static void main(String[] Args) {
@@ -65,16 +96,53 @@ public class Dws04_DwsUserUserLoginWindow extends BaseAppV1 {
         // loginLogStream.print();
 
         // 2. 找到当日登录用户记录 + 七日回流用户记录
-        findUVAndReturnUser(loginLogStream);
+        SingleOutputStreamOperator<UserLoginBean> uvAndReturnUserStream = findUVAndReturnUser(loginLogStream);// .print()
 
         // 3. 开窗聚合
+        SingleOutputStreamOperator<UserLoginBean> resultStream = windowAndAgg(uvAndReturnUserStream);// .print()
 
         // 4. 写入Doris
+        writeToDoris(resultStream);
 
     }
 
-    private void findUVAndReturnUser(SingleOutputStreamOperator<JSONObject> loginLogStream) {
-        loginLogStream
+    private SingleOutputStreamOperator<UserLoginBean> windowAndAgg(SingleOutputStreamOperator<UserLoginBean> uvAndReturnUserStream) {
+        return uvAndReturnUserStream
+                .assignTimestampsAndWatermarks(
+                        WatermarkStrategy
+                                .<UserLoginBean>forBoundedOutOfOrderness(
+                                        Duration.ofSeconds(3)
+                                )
+                )
+                .windowAll(TumblingEventTimeWindows.of(Time.seconds(5)))
+                .reduce(
+                        new ReduceFunction<UserLoginBean>() {
+                            @Override
+                            public UserLoginBean reduce(UserLoginBean bean1,
+                                                        UserLoginBean bean2) throws Exception {
+                                bean1.setUuCt(bean1.getUuCt() + bean2.getUuCt());
+                                bean1.setBackCt(bean1.getBackCt() + bean2.getBackCt());
+                                return bean1;
+                            }
+                        },
+                        new ProcessAllWindowFunction<UserLoginBean, UserLoginBean, TimeWindow>() {
+                            @Override
+                            public void process(ProcessAllWindowFunction<UserLoginBean, UserLoginBean, TimeWindow>.Context ctx,
+                                                Iterable<UserLoginBean> elements,
+                                                Collector<UserLoginBean> out) throws Exception {
+                                UserLoginBean bean = elements.iterator().next();
+                                bean.setStt(AtguiguUtil.toDateTime(ctx.window().getStart()));
+                                bean.setEdt(AtguiguUtil.toDateTime(ctx.window().getEnd()));
+                                bean.setCurDate(AtguiguUtil.toDate(System.currentTimeMillis()));
+                                out.collect(bean);
+                            }
+                        }
+                )
+        ;
+    }
+
+    private SingleOutputStreamOperator<UserLoginBean> findUVAndReturnUser(SingleOutputStreamOperator<JSONObject> loginLogStream) {
+        return loginLogStream
                 .keyBy(jsonObj -> jsonObj.getJSONObject("common").getString("uid"))
                 // process里面是一个匿名内部类
                 .process(new KeyedProcessFunction<String, JSONObject, UserLoginBean>() {
@@ -113,8 +181,21 @@ public class Dws04_DwsUserUserLoginWindow extends BaseAppV1 {
                             // 判断这个用户是否为回流用户
                             // 当最后一次登录日期不为空，表示这个用户不是新用户登录，才有必要判断是否为回流
                             if (lastLoginDate != null) {
-                                Long ts1 = AtguiguUtil.toTimeStamp(lastLoginDate);
+                                Long lastLoginTs = AtguiguUtil.toTimeStamp(lastLoginDate);
+                                Long thisLoginTs = AtguiguUtil.toTimeStamp(thisLoginDate);
+                                if ((thisLoginTs - lastLoginTs) / (1000 * 60 * 60 * 24) > 7) {
+                                    backCt = 1L;
+                                }
                             }
+                        }
+                        if (uuCt == 1) {
+                            out.collect(new UserLoginBean(
+                                    "",
+                                    "",
+                                    "",
+                                    backCt,
+                                    uuCt,
+                                    ts));
                         }
                     }
                 })
@@ -162,9 +243,29 @@ public class Dws04_DwsUserUserLoginWindow extends BaseAppV1 {
                         }
                 )
                 .addSink(FlinkSinkUtil.getDoriSink(
-                        "gmall2022."
+                        "gmall2022.dws_user_user_login_window"
                 ))
                 ;
 
     }
 }
+
+
+/**
+ * todo 报错
+ * {"back_ct":0,"cur_date":"2024-10-22","edt":"2024-10-22 20:54:45","stt":"2024-10-22 20:54:40","ts":1732280079000,"uu_ct":14}
+ * 1    [Map -> Sink: Unnamed (1/2)#1422] ERROR org.apache.doris.flink.table.DorisDynamicOutputFormat  - doris sink error, retry times = 0
+ * org.apache.doris.flink.exception.StreamLoadException: stream load error: errCode = 2, detailMessage = data cannot be inserted into table with empty partition. Use `SHOW PARTITIONS FROM dws_user_user_login_window` to see the currently partitions of this table. , see more in null
+ * 	at org.apache.doris.flink.table.DorisStreamLoad.load(DorisStreamLoad.java:109)
+ * 	at org.apache.doris.flink.table.DorisDynamicOutputFormat.flush(DorisDynamicOutputFormat.java:319)
+ * 	at org.apache.doris.flink.table.DorisDynamicOutputFormat.close(DorisDynamicOutputFormat.java:291)
+ * 	at org.apache.doris.flink.cfg.GenericDorisSinkFunction.close(GenericDorisSinkFunction.java:67)
+ * 	at org.apache.flink.api.common.functions.util.FunctionUtils.closeFunction(FunctionUtils.java:41)
+ * 	at org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator.dispose(AbstractUdfStreamOperator.java:117)
+ * 	at org.apache.flink.streaming.runtime.tasks.StreamTask.disposeAllOperators(StreamTask.java:864)
+ * 	at org.apache.flink.streaming.runtime.tasks.StreamTask.runAndSuppressThrowable(StreamTask.java:843)
+ * 	at org.apache.flink.streaming.runtime.tasks.StreamTask.cleanUpInvoke(StreamTask.java:756)
+ * 	at org.apache.flink.streaming.runtime.tasks.StreamTask.runWithCleanUpOnFail(StreamTask.java:662)
+ * 	at org.apache.flink.streaming.runtime.tasks.StreamTask.invoke(StreamTask.java:623)
+ * 	at org.apache.flink.runtime.taskmanager.Task.doRun(Task.java:779)
+ */

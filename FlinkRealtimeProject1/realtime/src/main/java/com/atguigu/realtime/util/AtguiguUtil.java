@@ -2,6 +2,7 @@ package com.atguigu.realtime.util;
 
 import com.alibaba.fastjson.JSONObject;
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,7 +33,7 @@ public class AtguiguUtil {
         return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(ts);
     }
 
-    public static Long toTimeStamp(String lastLoginDate) {
-
+    public static Long toTimeStamp(String date) throws ParseException {
+        return new SimpleDateFormat("yyyy-MM-dd").parse(date).getTime();
     }
 }
