@@ -90,9 +90,24 @@ ads层
         如果最后一次的日期是null，表示首次支付成功
 
 
-
-
-
+交易域SKU粒度下单各窗口汇总表
+数据源：
+    dwd层的下单事务事实表
+实现思路:
+    按照sku_id分组，开窗，聚合各个指标
+        总的销售额
+    结果写出到doris中
+1. 去重问题
+    下单事务事实表来源于预处理表
+        做了个过滤
+    预处理表如何实现？
+        order_detail join
+        order_info left join
+        详情活动 left join
+        详情优惠券 look up join
+        字典表
+    因为有left join，
+2. 如何补充其他维度
 
 
 

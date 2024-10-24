@@ -3,9 +3,11 @@ package com.atguigu.realtime.app.dwd.db;
 import com.atguigu.realtime.app.BaseSqlApp;
 import com.atguigu.realtime.common.Constant;
 import com.atguigu.realtime.util.SQLUtil;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.types.Row;
 
 import static org.apache.calcite.linq4j.tree.ExpressionType.Constant;
 
@@ -162,6 +164,11 @@ public class Dwd05_DwdTradeOrderPreProcess extends BaseSqlApp {
                 "on od.source_type = dic.dic_code");
         tEnv.createTemporaryView("result_table", resultTable);
 
+        // resultTable.printSchema();
+        // DataStream<Row> dataStream = tEnv.toDataStream(resultTable);
+        // dataStream.print();
+        // resultTable.execute().print();
+
         // 8. 定义动态表与输出的topic关联
         tEnv.executeSql("" +
                 "create table dwd_trade_order_pre_process(\n" +
@@ -205,3 +212,37 @@ public class Dwd05_DwdTradeOrderPreProcess extends BaseSqlApp {
         resultTable.executeInsert("dwd_trade_order_pre_process");
     }
 }
+
+/**
+ * todo 报错待解决
+ * Exception in thread "main" org.apache.flink.table.api.ValidationException: Unable to create a sink for writing table 'default_catalog.default_database.dwd_trade_order_pre_process'.
+ *
+ * Table options are:
+ *
+ * 'connector'='kafka'
+ * 'format'='json'
+ * 'properties.bootstrap.servers'='hadoop162:9092,hadoop163:9092,hadoop164:9092 '
+ * 'topic'='dwd_trade_order_pre_process'
+ * 	at org.apache.flink.table.factories.FactoryUtil.createTableSink(FactoryUtil.java:171)
+ * 	at org.apache.flink.table.planner.delegation.PlannerBase.getTableSink(PlannerBase.scala:367)
+ * 	at org.apache.flink.table.planner.delegation.PlannerBase.translateToRel(PlannerBase.scala:201)
+ * 	at org.apache.flink.table.planner.delegation.PlannerBase$$anonfun$1.apply(PlannerBase.scala:162)
+ * 	at org.apache.flink.table.planner.delegation.PlannerBase$$anonfun$1.apply(PlannerBase.scala:162)
+ * 	at scala.collection.TraversableLike$$anonfun$map$1.apply(TraversableLike.scala:234)
+ * 	at scala.collection.TraversableLike$$anonfun$map$1.apply(TraversableLike.scala:234)
+ * 	at scala.collection.Iterator$class.foreach(Iterator.scala:891)
+ * 	at scala.collection.AbstractIterator.foreach(Iterator.scala:1334)
+ * 	at scala.collection.IterableLike$class.foreach(IterableLike.scala:72)
+ * 	at scala.collection.AbstractIterable.foreach(Iterable.scala:54)
+ * 	at scala.collection.TraversableLike$class.map(TraversableLike.scala:234)
+ * 	at scala.collection.AbstractTraversable.map(Traversable.scala:104)
+ * 	at org.apache.flink.table.planner.delegation.PlannerBase.translate(PlannerBase.scala:162)
+ * 	at org.apache.flink.table.api.internal.TableEnvironmentImpl.translate(TableEnvironmentImpl.java:1518)
+ * 	at org.apache.flink.table.api.internal.TableEnvironmentImpl.executeInternal(TableEnvironmentImpl.java:740)
+ * 	at org.apache.flink.table.api.internal.TableImpl.executeInsert(TableImpl.java:572)
+ * 	at org.apache.flink.table.api.internal.TableImpl.executeInsert(TableImpl.java:554)
+ * 	at com.atguigu.realtime.app.dwd.db.Dwd05_DwdTradeOrderPreProcess.handle(Dwd05_DwdTradeOrderPreProcess.java:212)
+ * 	at com.atguigu.realtime.app.BaseSqlApp.init(BaseSqlApp.java:57)
+ * 	at com.atguigu.realtime.app.dwd.db.Dwd05_DwdTradeOrderPreProcess.main(Dwd05_DwdTradeOrderPreProcess.java:44)
+ * Caused by: org.apache.flink.table.api.ValidationException: The Kafka table 'default_catalog.default_database.dwd_trade_order_pre_process' with 'json' format doesn't support defining PRIMARY KEY constraint on the table, because it can't guarantee the semantic of primary key.
+ */

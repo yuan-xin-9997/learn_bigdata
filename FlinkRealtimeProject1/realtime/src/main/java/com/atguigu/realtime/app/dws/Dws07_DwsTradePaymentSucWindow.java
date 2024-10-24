@@ -1,9 +1,29 @@
 package com.atguigu.realtime.app.dws;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.PropertyNamingStrategy;
+import com.alibaba.fastjson.serializer.SerializeConfig;
 import com.atguigu.realtime.app.BaseAppV1;
+import com.atguigu.realtime.bean.TradePaymentWindowBean;
 import com.atguigu.realtime.common.Constant;
+import com.atguigu.realtime.util.AtguiguUtil;
+import com.atguigu.realtime.util.FlinkSinkUtil;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
+import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
+import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+import org.apache.flink.util.Collector;
+
+import java.time.Duration;
 
 /**
  * @author: yuan.xin
@@ -63,6 +83,114 @@ public class Dws07_DwsTradePaymentSucWindow extends BaseAppV1 {
 
     @Override
     protected void handle(StreamExecutionEnvironment env, DataStreamSource<String> stream) {
-        stream.print();
+        // stream.print();
+        stream
+                .map(JSON::parseObject)
+                .keyBy(obj -> obj.getString("user_id"))
+                .process(new KeyedProcessFunction<String, JSONObject, TradePaymentWindowBean>() {
+
+                    private ValueState<String> lastPaySucDateState;  // 当前用户最后一次支付成功的日期
+
+                    @Override
+                    public void open(Configuration parameters) throws Exception {
+                        lastPaySucDateState = getRuntimeContext().getState(new ValueStateDescriptor<String>("lastPaySucDate", String.class));
+                    }
+
+                    @Override
+                    public void processElement(JSONObject obj,
+                                               KeyedProcessFunction<String, JSONObject, TradePaymentWindowBean>.Context ctx,
+                                               Collector<TradePaymentWindowBean> out) throws Exception {
+                        String lastPaySucDate = this.lastPaySucDateState.value();
+                        long ts = obj.getLong("ts") * 1000;
+                        String today = AtguiguUtil.toDate(ts);
+                        // 支付成功独立用户数
+                        Long paymentSucUniqueUserCount = 0L;
+                        // 支付成功新用户数
+                        Long paymentSucNewUserCount = 0L;
+                        if (!today.equals(lastPaySucDate)) {
+                            // 这个用户今天第一次支付成功
+                            paymentSucUniqueUserCount = 1L;
+                            lastPaySucDateState.update(today);
+                            // 是否首次支付（是否新支付用户）
+                            if (lastPaySucDate == null) {
+                                paymentSucNewUserCount = 1L;
+                            }
+                        }
+                        if (paymentSucUniqueUserCount==1) {
+                            out.collect(new TradePaymentWindowBean(
+                                    "","","",
+                                    paymentSucUniqueUserCount,
+                                    paymentSucNewUserCount,
+                                    ts
+                            ));
+                        }
+                    }
+                })
+                // .print()
+                .assignTimestampsAndWatermarks(
+                        WatermarkStrategy
+                                .<TradePaymentWindowBean>forBoundedOutOfOrderness(Duration.ofSeconds(3))
+                                .withTimestampAssigner((bean, ts) -> bean.getTs())
+                )
+                .windowAll(TumblingEventTimeWindows.of(Time.seconds(5)))
+                .reduce(new ReduceFunction<TradePaymentWindowBean>() {
+                            @Override
+                            public TradePaymentWindowBean reduce(TradePaymentWindowBean bean1,
+                                                                 TradePaymentWindowBean bean2) throws Exception {
+                                bean1.setPaymentSucUniqueUserCount(bean1.getPaymentSucUniqueUserCount() + bean2.getPaymentSucUniqueUserCount());
+                                bean1.setPaymentNewUserCount(bean1.getPaymentNewUserCount() + bean2.getPaymentNewUserCount());
+                                return bean1;
+                            }
+                        },
+                        new AllWindowFunction<TradePaymentWindowBean, TradePaymentWindowBean, TimeWindow>() {
+                            @Override
+                            public void apply(TimeWindow window,
+                                              Iterable<TradePaymentWindowBean> values,
+                                              Collector<TradePaymentWindowBean> out) throws Exception {
+                                TradePaymentWindowBean bean = values.iterator().next();
+                                bean.setStt(AtguiguUtil.toDateTime(window.getStart()));
+                                bean.setEdt(AtguiguUtil.toDateTime(window.getEnd()));
+                                bean.setCurDate(AtguiguUtil.toDateTime(System.currentTimeMillis()));
+                                out.collect(bean);
+                            }
+                        }
+                )
+                .map(bean->{
+                    SerializeConfig config = new SerializeConfig();
+                    config.propertyNamingStrategy = PropertyNamingStrategy.SnakeCase;
+                    return JSON.toJSONString(bean, config);
+                })
+                .addSink(FlinkSinkUtil.getDoriSink(
+                        "gmall2022.dws_trade_payment_suc_window"
+                ))
+                ;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

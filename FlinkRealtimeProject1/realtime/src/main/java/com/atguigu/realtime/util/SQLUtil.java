@@ -30,6 +30,8 @@ public class SQLUtil {
                 " 'properties.bootstrap.servers'='"  + Constant.KAFKA_BROKERS +  " ', " +
                 " 'topic' = '" + topic + "', " +
                 " 'format' = 'json' " +
+                // " 'key.format' = 'json', " +
+                // " 'value.format' = 'json' " +
                 ")";
     }
 }
