@@ -73,7 +73,7 @@ public class Dwd08_DwdTradePayDetailSuc {
                 "row_op_ts timestamp_ltz(3)\n" +
                 ")" +
                 // KafkaUtil.getKafkaDDL("dwd_trade_order_detail", "dwd_trade_pay_detail_suc"));
-        SQLUtil.getKafkaSource(Constant.DWD_TRADE_ORDER_DETAIL, "Dwd08_DwdTradePayDetailSuc"))
+        SQLUtil.getKafkaSource(Constant.TOPIC_DWD_TRADE_ORDER_DETAIL, "Dwd08_DwdTradePayDetailSuc"))
                 ;
 
         // TODO 4. 从 Kafka 读取业务数据，封装为 Flink SQL 表

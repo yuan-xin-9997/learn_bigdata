@@ -22,7 +22,7 @@ public class Constant {
     public static final String TOPIC_DWD_TRADE_CART_ADD = "dwd_trade_cart_add";
     public static final String TOPIC_DWD_TRADE_ORDER_PRE_PROCESS = "dwd_trade_order_pre_process";
     public static final String TOPIC_DWD_TRADE_ORDER_REFUND = "dwd_trade_order_refund";
-    public static final String DWD_TRADE_ORDER_DETAIL = "dwd_trade_order_detail";
+    public static final String TOPIC_DWD_TRADE_ORDER_DETAIL = "dwd_trade_order_detail";
     public static final String TOPIC_DWD_TRADE_REFUND_PAY_SUC = "dwd_trade_refund_pay_suc";
     public static final String TOPIC_DWD_TRADE_PAY_DETAIL_SUC = "dwd_trade_pay_detail_suc";
     public static final String DORIS_FENODES = "hadoop162:7030";

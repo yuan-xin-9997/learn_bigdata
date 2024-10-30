@@ -123,7 +123,7 @@ public class Dwd06_DwdTradeOrderDetail {
                 "split_total_amount string,\n" +
                 "ts string,\n" +
                 "row_op_ts timestamp_ltz(3)\n" +
-                ")" + KafkaUtil.getKafkaSinkDDL(Constant.DWD_TRADE_ORDER_DETAIL));
+                ")" + KafkaUtil.getKafkaSinkDDL(Constant.TOPIC_DWD_TRADE_ORDER_DETAIL));
 
         // TODO 6. 将数据写出到 Kafka
         tableEnv.executeSql("insert into dwd_trade_order_detail select * from filtered_table");
