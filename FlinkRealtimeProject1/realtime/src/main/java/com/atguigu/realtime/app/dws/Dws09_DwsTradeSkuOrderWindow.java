@@ -1,22 +1,35 @@
 package com.atguigu.realtime.app.dws;
 
+import com.alibaba.druid.pool.DruidDataSource;
+import com.alibaba.druid.pool.DruidPooledConnection;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.atguigu.realtime.app.BaseAppV1;
 import com.atguigu.realtime.bean.TradeSkuOrderBean;
 import com.atguigu.realtime.common.Constant;
 import com.atguigu.realtime.util.AtguiguUtil;
+import com.atguigu.realtime.util.DimUtil;
+import com.atguigu.realtime.util.DruidDSUtil;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
+import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
+import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 
 
 /**
@@ -151,10 +164,84 @@ public class Dws09_DwsTradeSkuOrderWindow extends BaseAppV1 {
         SingleOutputStreamOperator<JSONObject> distractedStream = distinctByOrderDetailId(stream);// .print()
 
         // 2. 封装数据到POJO中
-        parseToPojo(distractedStream);
+        SingleOutputStreamOperator<TradeSkuOrderBean> beanStream = parseToPojo(distractedStream);
+
         // 2. 按照sku_id 分组 开窗聚合
+        SingleOutputStreamOperator<TradeSkuOrderBean> beanStreamWithoutDim = windowAndAgg(beanStream);
+
         // 3. 补充维度信息
+        addDim(beanStreamWithoutDim);
+
         // 4. 写出到Doris
+
+    }
+
+    private SingleOutputStreamOperator<TradeSkuOrderBean> addDim(SingleOutputStreamOperator<TradeSkuOrderBean> beanStreamWithoutDim) {
+        // 补充维度信息
+        // 每来一条数据，需要查询6张维度表
+        return beanStreamWithoutDim
+                .map(
+                        new RichMapFunction<TradeSkuOrderBean, TradeSkuOrderBean>() {
+
+                            private DruidDataSource druidDataSource;
+
+                            @Override
+                            public void open(Configuration parameters) throws Exception {
+                                druidDataSource = DruidDSUtil.getDruidDataSource();
+                            }
+
+                            @Override
+                            public TradeSkuOrderBean map(TradeSkuOrderBean bean) throws Exception {
+                                DruidPooledConnection phoenixConn = druidDataSource.getConnection();
+                                // 1. 查找dim_sku_info
+                                // select * from dim_sku_info where id='1';
+                                // JSONObject : {"列名": 值, ...}
+                                JSONObject skuInfo = DimUtil.readDimFromPhoenix(phoenixConn, "dim_sku_info", bean.getSkuId());
+                                bean.setSkuName(skuInfo.getString("SKU_NAME"));
+                                return null;
+                            }
+                        }
+                )
+                ;
+    }
+
+    private SingleOutputStreamOperator<TradeSkuOrderBean> windowAndAgg(SingleOutputStreamOperator<TradeSkuOrderBean> beanStream) {
+        return beanStream
+                .assignTimestampsAndWatermarks(
+                        WatermarkStrategy
+                                .<TradeSkuOrderBean>forBoundedOutOfOrderness(Duration.ofSeconds(3))
+                                .withTimestampAssigner((bean, ts) -> bean.getTs())
+                )
+                .keyBy(TradeSkuOrderBean::getSkuId)
+                .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+                .reduce(new ReduceFunction<TradeSkuOrderBean>() {
+                            @Override
+                            public TradeSkuOrderBean reduce(TradeSkuOrderBean bean1,
+                                                            TradeSkuOrderBean bean2) throws Exception {
+                                bean1.setOriginalAmount(bean1.getOriginalAmount().add(bean2.getOriginalAmount()));
+                                bean1.setActivityAmount(bean1.getActivityAmount().add(bean2.getActivityAmount()));
+                                bean1.setCouponAmount(bean1.getCouponAmount().add(bean2.getCouponAmount()));
+                                bean1.setOrderAmount(bean1.getOrderAmount().add(bean2.getOrderAmount()));
+                                return bean1;
+                            }
+                        },
+                        new ProcessWindowFunction<TradeSkuOrderBean, TradeSkuOrderBean, String, TimeWindow>() {
+                            @Override
+                            public void process(String s,
+                                                ProcessWindowFunction<TradeSkuOrderBean, TradeSkuOrderBean,
+                                                        String, TimeWindow>.Context context,
+                                                java.lang.Iterable<TradeSkuOrderBean> elements,
+                                                Collector<TradeSkuOrderBean> out) throws Exception {
+                                TradeSkuOrderBean bean = elements.iterator().next();
+                                bean.setStt(AtguiguUtil.toDateTime(context.window().getStart()));
+                                bean.setEdt(AtguiguUtil.toDateTime(context.window().getEnd()));
+                                bean.setCurDate(AtguiguUtil.toDate(System.currentTimeMillis()));
+                                out.collect(bean);
+                            }
+                        }
+                )
+                ;
+
     }
 
     private SingleOutputStreamOperator<TradeSkuOrderBean> parseToPojo(SingleOutputStreamOperator<JSONObject> distractedStream) {

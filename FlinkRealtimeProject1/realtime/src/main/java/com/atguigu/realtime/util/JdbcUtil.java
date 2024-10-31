@@ -1,10 +1,14 @@
 package com.atguigu.realtime.util;
 
+import com.alibaba.fastjson.JSONObject;
 import com.atguigu.realtime.common.Constant;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 获取数据库连接工具类
@@ -62,5 +66,22 @@ public class JdbcUtil {
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * 查询数据
+     * @param conn
+     * @param querySql
+     * @param args
+     * @return
+     */
+    public static <T> List<T> queryList(Connection conn, String querySql, String[] args, Class<T> tClass) {
+        ArrayList<T> result = new ArrayList<>();
+        try {
+            PreparedStatement ps = conn.prepareStatement(querySql);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return result;
     }
 }
