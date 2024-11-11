@@ -170,7 +170,8 @@ public class Dws09_DwsTradeSkuOrderWindow extends BaseAppV1 {
         SingleOutputStreamOperator<TradeSkuOrderBean> beanStreamWithoutDim = windowAndAgg(beanStream);
 
         // 3. 补充维度信息
-        addDim(beanStreamWithoutDim);
+        SingleOutputStreamOperator<TradeSkuOrderBean> beanStreamWithDim = addDim(beanStreamWithoutDim);
+        beanStreamWithDim.print();
 
         // 4. 写出到Doris
 
@@ -198,7 +199,7 @@ public class Dws09_DwsTradeSkuOrderWindow extends BaseAppV1 {
                                 // JSONObject : {"列名": 值, ...}
                                 JSONObject skuInfo = DimUtil.readDimFromPhoenix(phoenixConn, "dim_sku_info", bean.getSkuId());
                                 bean.setSkuName(skuInfo.getString("SKU_NAME"));
-                                return null;
+                                return bean;
                             }
                         }
                 )

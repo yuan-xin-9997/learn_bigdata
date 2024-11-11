@@ -2,6 +2,7 @@ package com.atguigu.realtime.app.dwd.db;
 
 import com.atguigu.realtime.app.BaseSqlApp;
 import com.atguigu.realtime.common.Constant;
+import com.atguigu.realtime.util.KafkaUtil;
 import com.atguigu.realtime.util.SQLUtil;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -150,8 +151,10 @@ public class Dwd05_DwdTradeOrderPreProcess extends BaseSqlApp {
                 "od.split_total_amount,\n" +
                 "oi.`type`,\n" +
                 "oi.`old`,\n" +
-                "od.od_ts,\n" +
-                "oi.oi_ts,\n" +
+                // "od.od_ts,\n" +
+                "cast(od.od_ts as string) as od_ts, " +
+                // "oi.oi_ts,\n" +
+                 "cast(oi.oi_ts as string) as oi_ts,\n" +
                 "current_row_timestamp() row_op_ts\n" +
                 "from order_detail od \n" +
                 "join order_info oi\n" +
@@ -200,7 +203,8 @@ public class Dwd05_DwdTradeOrderPreProcess extends BaseSqlApp {
                 "oi_ts string,\n" +
                 "row_op_ts timestamp_ltz(3),\n" +
                 "primary key(id) not enforced\n" +
-                ")" + SQLUtil.getKafkaSink(com.atguigu.realtime.common.Constant.TOPIC_DWD_TRADE_ORDER_PRE_PROCESS)
+                ")" + KafkaUtil.getUpsertKafkaDDL(com.atguigu.realtime.common.Constant.TOPIC_DWD_TRADE_ORDER_PRE_PROCESS)
+                // ")" + SQLUtil.getKafkaSink(com.atguigu.realtime.common.Constant.TOPIC_DWD_TRADE_ORDER_PRE_PROCESS)
         )
                 ;
 
@@ -212,37 +216,3 @@ public class Dwd05_DwdTradeOrderPreProcess extends BaseSqlApp {
         resultTable.executeInsert("dwd_trade_order_pre_process");
     }
 }
-
-/**
- * todo 报错待解决
- * Exception in thread "main" org.apache.flink.table.api.ValidationException: Unable to create a sink for writing table 'default_catalog.default_database.dwd_trade_order_pre_process'.
- *
- * Table options are:
- *
- * 'connector'='kafka'
- * 'format'='json'
- * 'properties.bootstrap.servers'='hadoop162:9092,hadoop163:9092,hadoop164:9092 '
- * 'topic'='dwd_trade_order_pre_process'
- * 	at org.apache.flink.table.factories.FactoryUtil.createTableSink(FactoryUtil.java:171)
- * 	at org.apache.flink.table.planner.delegation.PlannerBase.getTableSink(PlannerBase.scala:367)
- * 	at org.apache.flink.table.planner.delegation.PlannerBase.translateToRel(PlannerBase.scala:201)
- * 	at org.apache.flink.table.planner.delegation.PlannerBase$$anonfun$1.apply(PlannerBase.scala:162)
- * 	at org.apache.flink.table.planner.delegation.PlannerBase$$anonfun$1.apply(PlannerBase.scala:162)
- * 	at scala.collection.TraversableLike$$anonfun$map$1.apply(TraversableLike.scala:234)
- * 	at scala.collection.TraversableLike$$anonfun$map$1.apply(TraversableLike.scala:234)
- * 	at scala.collection.Iterator$class.foreach(Iterator.scala:891)
- * 	at scala.collection.AbstractIterator.foreach(Iterator.scala:1334)
- * 	at scala.collection.IterableLike$class.foreach(IterableLike.scala:72)
- * 	at scala.collection.AbstractIterable.foreach(Iterable.scala:54)
- * 	at scala.collection.TraversableLike$class.map(TraversableLike.scala:234)
- * 	at scala.collection.AbstractTraversable.map(Traversable.scala:104)
- * 	at org.apache.flink.table.planner.delegation.PlannerBase.translate(PlannerBase.scala:162)
- * 	at org.apache.flink.table.api.internal.TableEnvironmentImpl.translate(TableEnvironmentImpl.java:1518)
- * 	at org.apache.flink.table.api.internal.TableEnvironmentImpl.executeInternal(TableEnvironmentImpl.java:740)
- * 	at org.apache.flink.table.api.internal.TableImpl.executeInsert(TableImpl.java:572)
- * 	at org.apache.flink.table.api.internal.TableImpl.executeInsert(TableImpl.java:554)
- * 	at com.atguigu.realtime.app.dwd.db.Dwd05_DwdTradeOrderPreProcess.handle(Dwd05_DwdTradeOrderPreProcess.java:212)
- * 	at com.atguigu.realtime.app.BaseSqlApp.init(BaseSqlApp.java:57)
- * 	at com.atguigu.realtime.app.dwd.db.Dwd05_DwdTradeOrderPreProcess.main(Dwd05_DwdTradeOrderPreProcess.java:44)
- * Caused by: org.apache.flink.table.api.ValidationException: The Kafka table 'default_catalog.default_database.dwd_trade_order_pre_process' with 'json' format doesn't support defining PRIMARY KEY constraint on the table, because it can't guarantee the semantic of primary key.
- */
