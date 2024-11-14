@@ -10,6 +10,7 @@ import com.atguigu.realtime.common.Constant;
 import com.atguigu.realtime.util.AtguiguUtil;
 import com.atguigu.realtime.util.DimUtil;
 import com.atguigu.realtime.util.DruidDSUtil;
+import com.atguigu.realtime.util.RedisUtil;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
@@ -17,7 +18,6 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindo
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
+import redis.clients.jedis.Jedis;
 
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -34,7 +35,7 @@ import java.time.Duration;
 
 /**
  * @author: yuan.xin
- * @createTime: 2024/10/30 20:17
+ * @createTime: 2024年11月14日19:53:35
  * @contact: yuanxin9997@qq.com
  * @description: 10.9 交易域SKU粒度下单各窗口汇总表
  *
@@ -149,9 +150,9 @@ import java.time.Duration;
  * 	获取 name（一级品类名称）。
  * （8）写出到 Doris。
  */
-public class Dws09_DwsTradeSkuOrderWindow extends BaseAppV1 {
+public class Dws09_DwsTradeSkuOrderWindow_Cache extends BaseAppV1 {
     public static void main(String[] Args) {
-        new Dws09_DwsTradeSkuOrderWindow().init(
+        new Dws09_DwsTradeSkuOrderWindow_Cache().init(
                 40009,
                 2,
                 "Dws09_DwsTradeSkuOrderWindow",
@@ -203,53 +204,58 @@ public class Dws09_DwsTradeSkuOrderWindow extends BaseAppV1 {
                 .map(
                         new RichMapFunction<TradeSkuOrderBean, TradeSkuOrderBean>() {
 
+                            private Jedis redisClient;
                             private DruidDataSource druidDataSource;
 
                             @Override
                             public void open(Configuration parameters) throws Exception {
+                                System.out.println("执行open方法" + System.currentTimeMillis());
                                 druidDataSource = DruidDSUtil.getDruidDataSource();  // 创建连接池
+                                redisClient = RedisUtil.getRedisClient();  // 关闭redis连接
                             }
 
                             @Override
                             public void close() throws Exception {
-                                druidDataSource.close();
+                                System.out.println("执行close方法" + System.currentTimeMillis());
+                                druidDataSource.close();  // 关闭连接池
+                                redisClient.close();  // 归还Redis连接
                             }
 
                             @Override
                             public TradeSkuOrderBean map(TradeSkuOrderBean bean) throws Exception {
-                                DruidPooledConnection phoenixConn = druidDataSource.getConnection();
+                                DruidPooledConnection phoenixConn = druidDataSource.getConnection();  // 防止长连接问题
                                 // 1. 查找dim_sku_info
                                 // select * from dim_sku_info where id='1';
                                 // JSONObject : {"列名": 值, ...}
-                                JSONObject skuInfo = DimUtil.readDimFromPhoenix(phoenixConn, "dim_sku_info", bean.getSkuId());
+                                JSONObject skuInfo = DimUtil.readDim(redisClient, phoenixConn, "dim_sku_info", bean.getSkuId());
                                 bean.setSkuName(skuInfo.getString("SKU_NAME"));
                                 bean.setTrademarkId(skuInfo.getString("TM_ID"));
                                 bean.setSpuId(skuInfo.getString("SPU_ID"));
                                 bean.setCategory3Id(skuInfo.getString("CATEGORY3_ID"));
 
                                 // 2. 查找tm表
-                                JSONObject tmInfo = DimUtil.readDimFromPhoenix(phoenixConn, "dim_base_trademark", bean.getTrademarkId());
+                                JSONObject tmInfo = DimUtil.readDim(redisClient, phoenixConn, "dim_base_trademark", bean.getTrademarkId());
                                 bean.setTrademarkName(tmInfo.getString("TM_NAME"));
 
                                 // 3. 查找dim_spu_info
-                                JSONObject spuInfo = DimUtil.readDimFromPhoenix(phoenixConn, "dim_spu_info", bean.getSpuId());
+                                JSONObject spuInfo = DimUtil.readDim(redisClient, phoenixConn, "dim_spu_info", bean.getSpuId());
                                 bean.setSpuName(spuInfo.getString("SPU_NAME"));
 
                                 // 4. 查找dim_base_category3
-                                JSONObject category3Info = DimUtil.readDimFromPhoenix(phoenixConn, "dim_base_category3", bean.getCategory3Id());
+                                JSONObject category3Info = DimUtil.readDim(redisClient, phoenixConn, "dim_base_category3", bean.getCategory3Id());
                                 bean.setCategory3Name(category3Info.getString("NAME"));
                                 bean.setCategory2Id(category3Info.getString("category2_id"));
 
                                 // 5. 查找dim_base_category2
-                                JSONObject category2Info = DimUtil.readDimFromPhoenix(phoenixConn, "dim_base_category2", bean.getCategory2Id());
+                                JSONObject category2Info = DimUtil.readDim(redisClient, phoenixConn, "dim_base_category2", bean.getCategory2Id());
                                 bean.setCategory2Name(category2Info.getString("NAME"));
                                 bean.setCategory1Id(category2Info.getString("category1_id"));
 
                                 // 6. 查找dim_base_category1
-                                JSONObject category1Info = DimUtil.readDimFromPhoenix(phoenixConn, "dim_base_category1", bean.getCategory1Id());
+                                JSONObject category1Info = DimUtil.readDim(redisClient, phoenixConn, "dim_base_category1", bean.getCategory1Id());
                                 bean.setCategory1Name(category1Info.getString("NAME"));
 
-                                phoenixConn.close();  // 关闭连接
+                                phoenixConn.close();  // 归还连接给连接池
                                 return bean;
                             }
                         }
@@ -282,7 +288,7 @@ public class Dws09_DwsTradeSkuOrderWindow extends BaseAppV1 {
                             public void process(String s,
                                                 ProcessWindowFunction<TradeSkuOrderBean, TradeSkuOrderBean,
                                                         String, TimeWindow>.Context context,
-                                                java.lang.Iterable<TradeSkuOrderBean> elements,
+                                                Iterable<TradeSkuOrderBean> elements,
                                                 Collector<TradeSkuOrderBean> out) throws Exception {
                                 TradeSkuOrderBean bean = elements.iterator().next();
                                 bean.setStt(AtguiguUtil.toDateTime(context.window().getStart()));

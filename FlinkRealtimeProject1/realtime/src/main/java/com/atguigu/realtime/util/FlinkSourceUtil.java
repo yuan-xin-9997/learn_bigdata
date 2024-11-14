@@ -8,6 +8,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.streaming.connectors.kafka.KafkaDeserializationSchema;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
 import java.nio.charset.StandardCharsets;
@@ -30,6 +31,8 @@ public class FlinkSourceUtil {
         Properties properties = new Properties();
         properties.setProperty("bootstrap.servers", Constant.KAFKA_BROKERS);
         properties.setProperty("isolation.level", "read_committed");
+        // properties.setProperty("group.id", groupId);
+        properties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, groupId);
         return new FlinkKafkaConsumer<String>(
                 topic,
                 new KafkaDeserializationSchema<String>() {

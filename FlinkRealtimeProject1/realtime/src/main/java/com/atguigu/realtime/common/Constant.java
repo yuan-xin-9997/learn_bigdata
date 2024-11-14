@@ -26,6 +26,7 @@ public class Constant {
     public static final String TOPIC_DWD_TRADE_REFUND_PAY_SUC = "dwd_trade_refund_pay_suc";
     public static final String TOPIC_DWD_TRADE_PAY_DETAIL_SUC = "dwd_trade_pay_detail_suc";
     public static final String DORIS_FENODES = "hadoop162:7030";
+    public static final int TWO_DAY_SECONDS = 60 * 60 * 24 * 2;
 
     public static void main(String[] Args) {
 

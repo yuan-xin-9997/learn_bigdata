@@ -100,6 +100,7 @@ public class JdbcUtil {
                 }
                 result.add(t);
             }
+            ps.close();
         } catch (SQLException | InstantiationException | IllegalAccessException | InvocationTargetException e) {
             throw new RuntimeException(e);
         }
