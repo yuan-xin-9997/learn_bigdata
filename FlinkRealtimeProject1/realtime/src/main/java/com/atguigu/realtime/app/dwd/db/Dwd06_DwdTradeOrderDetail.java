@@ -22,6 +22,9 @@ public class Dwd06_DwdTradeOrderDetail {
         env.setParallelism(4);
         StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
+        // 设置Job Name
+        // env.getStreamGraph().setJobName("Dwd06_DwdTradeOrderDetail");
+
         // TODO 2. 启用状态后端
         env.enableCheckpointing(3000L, CheckpointingMode.EXACTLY_ONCE);
         env.getCheckpointConfig().setCheckpointTimeout(60 * 1000L);
@@ -29,6 +32,16 @@ public class Dwd06_DwdTradeOrderDetail {
                 CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION
         );
         env.getCheckpointConfig().setMinPauseBetweenCheckpoints(3000L);
+        // 设置重启策略 为 failureRateRestart策略
+        // 设置重启策略为失败率重启策略
+        // env.setRestartStrategy(RestartStrategies.failureRateRestart(
+        //     // 每个测量时间间隔内允许的最大失败次数
+        //     <number-of-attempts>,
+        //     // 失败率测量的时间间隔
+        //     Time.of(<delay-in-seconds>, TimeUnit.SECONDS),
+        //     // 两次连续重启尝试之间的时间间隔
+        //     Time.of(<retry-interval-in-seconds>, TimeUnit.SECONDS)
+        // ));
         env.setRestartStrategy(
                 RestartStrategies.failureRateRestart(3, Time.days(1L), Time.minutes(3L))
         );

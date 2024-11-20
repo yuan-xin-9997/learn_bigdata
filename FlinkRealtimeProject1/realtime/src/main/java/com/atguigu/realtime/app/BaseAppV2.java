@@ -56,6 +56,18 @@ public abstract class BaseAppV2 {
         env.getCheckpointConfig().setMinPauseBetweenCheckpoints(500);
         env.getCheckpointConfig().setExternalizedCheckpointCleanup(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 
+        // 关于Flink的RestartStrategy重启策略：
+        // Flink 作业如果没有定义重启策略，则会遵循集群启动时加载的默认重启策略。 如果提交作业时设置了重启策略，该策略将覆盖掉集群的默认策略。
+        //
+        // 通过 Flink 的配置文件 flink-conf.yaml 来设置默认的重启策略。配置参数 restart-strategy 定义了采取何种策略。 如果没有启用
+        // checkpoint，就采用“不重启”策略。如果启用了 checkpoint 且没有配置重启策略，那么就采用固定延时重启策略， 此时最大尝试重启次
+        // 数由 Integer.MAX_VALUE 参数设置。
+        // ————————————————
+        //
+        //                             版权声明：本文为博主原创文章，遵循 CC 4.0 BY-SA 版权协议，转载请附上原文出处链接和本声明。
+        //
+        // 原文链接：https://blog.csdn.net/qq_44962429/article/details/103685582
+
         // 遍历topics得到多个流
         HashMap<String, DataStreamSource<String>> streams = new HashMap<String, DataStreamSource<String>>();
         for (String topic : topics) {
