@@ -1,8 +1,8 @@
 #!/bin/bash  
 # 远程停止应用程序脚本
-if [ $# -lt 5 ]
+if [ $# -lt 4 ]
 then
-	echo "usages: $0 Ctr Sys Srv SrvNo Args"
+	echo "usages: $0 Ctr Sys Srv SrvNo [Args]"
 	exit 1
 fi
 
